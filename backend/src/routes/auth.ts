@@ -1,0 +1,23 @@
+import { randomUUID } from "node:crypto";
+import { Router } from "express";
+import { z } from "zod";
+import { env } from "../config/env.js";
+import { RefreshToken, User } from "../models/index.js";
+import { authenticate } from "../middleware/auth.js";
+import { fail, ok } from "../utils/http.js";
+import { createAccessToken, createRefreshToken, hashPassword, verifyPassword, verifyRefreshToken } from "../utils/security.js";
+
+const router = Router();
+const credentials = z.object({ email: z.string().email(), password: z.string().min(8).max(128) });
+const cookieOptions = { httpOnly: true, secure: env.NODE_ENV === "production", sameSite: "lax" as const, domain: env.COOKIE_DOMAIN || undefined, path: "/" };
+
+function publicUser(user: any) { return { id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions, mustChangePassword: user.mustChangePassword }; }
+async function issueSession(user: any, response: any) { const tokenId = randomUUID(); const refresh = createRefreshToken({ id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions }, tokenId); await RefreshToken.create({ userId: user._id, tokenId, expiresAt: new Date(Date.now() + 7 * 86400000) }); response.cookie("refreshToken", refresh, { ...cookieOptions, maxAge: 7 * 86400000 }); return createAccessToken({ id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions }); }
+
+router.post("/login", async (request, response, next) => { try { const input = credentials.parse(request.body); const user = await User.findOne({ email: input.email.toLowerCase(), deletedAt: null }); if (!user || !user.isActive || !(await verifyPassword(input.password, user.passwordHash))) return fail(response, 401, "AUTH_INVALID_CREDENTIALS", "Invalid email or password"); user.lastLoginAt = new Date(); await user.save(); const accessToken = await issueSession(user, response); return ok(response, { user: publicUser(user), accessToken }); } catch (error) { next(error); } });
+router.post("/refresh", async (request, response) => { try { const raw = request.cookies?.refreshToken; if (!raw) return fail(response, 401, "AUTH_UNAUTHORIZED", "Refresh token required"); const payload = verifyRefreshToken(raw); const stored = await RefreshToken.findOne({ tokenId: payload.jti, userId: payload.sub, revokedAt: null, expiresAt: { $gt: new Date() } }); const user = await User.findOne({ _id: payload.sub, isActive: true, deletedAt: null }); if (!stored || !user) return fail(response, 401, "AUTH_UNAUTHORIZED", "Refresh token is invalid"); stored.revokedAt = new Date(); await stored.save(); const accessToken = await issueSession(user, response); return ok(response, { accessToken }); } catch { return fail(response, 401, "AUTH_UNAUTHORIZED", "Refresh token is invalid"); } });
+router.post("/logout", async (request, response) => { const raw = request.cookies?.refreshToken; if (raw) { try { const payload = verifyRefreshToken(raw); await RefreshToken.updateOne({ tokenId: payload.jti }, { revokedAt: new Date() }); } catch { /* token is already invalid */ } } response.clearCookie("refreshToken", cookieOptions); return ok(response, null); });
+router.get("/me", authenticate, async (request, response) => ok(response, { user: request.user }));
+router.post("/change-password", authenticate, async (request, response, next) => { try { const input = z.object({ currentPassword: z.string(), newPassword: z.string().min(8).max(128) }).parse(request.body); const user = await User.findById(request.user!.id); if (!user || !(await verifyPassword(input.currentPassword, user.passwordHash))) return fail(response, 400, "AUTH_INVALID_PASSWORD", "Current password is incorrect"); user.passwordHash = await hashPassword(input.newPassword); user.mustChangePassword = false; await user.save(); return ok(response, null); } catch (error) { next(error); } });
+
+export { router as authRouter };
