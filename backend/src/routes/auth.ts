@@ -9,7 +9,7 @@ import { createAccessToken, createRefreshToken, hashPassword, verifyPassword, ve
 
 const router = Router();
 const credentials = z.object({ email: z.string().email(), password: z.string().min(8).max(128) });
-const cookieOptions = { httpOnly: true, secure: env.NODE_ENV === "production", sameSite: "lax" as const, domain: env.COOKIE_DOMAIN || undefined, path: "/" };
+const cookieOptions = { httpOnly: true, secure: env.NODE_ENV === "production", sameSite: env.NODE_ENV === "production" ? "none" as const : "lax" as const, domain: env.COOKIE_DOMAIN || undefined, path: "/" };
 
 function publicUser(user: any) { return { id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions, mustChangePassword: user.mustChangePassword }; }
 async function issueSession(user: any, response: any) { const tokenId = randomUUID(); const refresh = createRefreshToken({ id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions }, tokenId); await RefreshToken.create({ userId: user._id, tokenId, expiresAt: new Date(Date.now() + 7 * 86400000) }); response.cookie("refreshToken", refresh, { ...cookieOptions, maxAge: 7 * 86400000 }); return createAccessToken({ id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions }); }

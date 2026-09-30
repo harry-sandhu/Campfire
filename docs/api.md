@@ -11,6 +11,8 @@ The API is served under `/api/v1` and returns `{ success: true, data }` for succ
 - `GET /health/ready`
 - `GET /api/v1/health`
 - `GET /api/v1/health/ready`
+- `DELETE /users/:id` — SuperAdmin/user administrator soft-deletes a user and revokes their refresh sessions.
+- `POST /users/:id/reset-password` — SuperAdmin/user administrator sets a temporary password for a user.
 - `POST /bootstrap` — creates the first SuperAdmin only when none exists and the initial credentials are supplied through environment variables.
 
 ## Authenticated endpoints
