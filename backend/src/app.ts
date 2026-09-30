@@ -32,6 +32,7 @@ export function createApp() {
   app.use("/api/v1/notifications", notificationsRouter);
   app.use("/api/v1/activity", activityRouter);
   app.use("/api/v1/dashboard", dashboardRouter);
+  app.use("/api/v1/health", healthRouter);
   app.use("/api/docs", docsRouter);
 
   app.use("/health", healthRouter);

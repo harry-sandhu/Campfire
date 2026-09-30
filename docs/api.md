@@ -9,6 +9,8 @@ The API is served under `/api/v1` and returns `{ success: true, data }` for succ
 - `POST /auth/logout`
 - `GET /health`
 - `GET /health/ready`
+- `GET /api/v1/health`
+- `GET /api/v1/health/ready`
 - `POST /bootstrap` — creates the first SuperAdmin only when none exists and the initial credentials are supplied through environment variables.
 
 ## Authenticated endpoints
