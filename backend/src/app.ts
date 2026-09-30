@@ -35,6 +35,9 @@ export function createApp() {
   app.use("/api/v1/health", healthRouter);
   app.use("/api/docs", docsRouter);
 
+  app.get("/", (_request, response) => {
+    response.json({ success: true, message: "Server is working" });
+  });
   app.use("/health", healthRouter);
   app.use((_request, response) => {
     response.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Route not found" } });
