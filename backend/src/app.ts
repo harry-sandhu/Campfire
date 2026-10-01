@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -39,7 +40,17 @@ export function createApp() {
   app.use(cors({ origin: (origin, callback) => callback(null, !origin || allowedOrigins.includes(origin)), credentials: true }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
-  app.use(pinoHttp({ level: env.NODE_ENV === "test" ? "silent" : "info" }));
+  app.use(pinoHttp({
+    level: env.NODE_ENV === "test" ? "silent" : "info",
+    // Honour an upstream request id so one request can be traced across proxy and API logs.
+    genReqId: (request, response) => {
+      const id = String(request.headers["x-request-id"] ?? randomUUID());
+      response.setHeader("x-request-id", id);
+      return id;
+    },
+    // Never write credentials to the logs.
+    redact: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]', "req.headers['x-bootstrap-token']"],
+  }));
   app.use("/api/v1/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }), requireAllowedOrigin(allowedOrigins), authRouter);
   app.use("/api/v1/bootstrap", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5 }), bootstrapRouter);
   app.use("/api/v1/users", usersRouter);
