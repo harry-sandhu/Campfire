@@ -41,3 +41,9 @@ Remaining expansion items for a later iteration are richer Markdown editing, ful
 ## Phase 9 — Groups, topics and hardening: complete
 
 Added groups and topics with group-scoped visibility across tickets, comments, links, dashboard and activity; ungrouped tickets visible to creator/assignees; field-level ticket permissions; `groups.create` permission; permission delegation limits; refresh-token reuse detection, origin check on cookie endpoints, timing-safe login and server-enforced password change; centralised error handling; escaped search; a rebuilt frontend (App Router pages, token refresh, group/member/topic management, board view, notifications, accessible dialogs, dark mode); integration tests and CI.
+
+## Phase 10 — Collaboration, administration and integrations: complete
+
+Mentions, watchers, subtasks and relations, milestones, bulk edits, saved views, CSV import/export, templates and recurring tickets, search and command palette, reports, realtime event stream, per-group webhooks, personal API tokens, audit log, SuperAdmin data management (trash, restore, purge, cleanup), session management, login lockout, role templates, Markdown, paginated comments and activity, PWA manifest, request ids and log redaction, a backup script, an OpenAPI reference with a drift test and Playwright browser tests.
+
+Deliberately deferred: email delivery, file attachments, two-factor authentication, push notifications and external error monitoring.

@@ -1,41 +1,36 @@
 # API reference
 
-The API is served under `/api/v1` and returns `{ success: true, data }` for successful requests or `{ success: false, error: { code, message } }` for errors.
+The full, always-current reference is generated from `backend/src/openapi.ts`:
 
-## Public endpoints
+- Interactive: `GET /api/docs` (Swagger UI)
+- Machine-readable: `GET /api/docs/openapi.json`
 
-- `POST /auth/login`
-- `POST /auth/refresh`
-- `POST /auth/logout`
-- `GET /health`
-- `GET /health/ready`
-- `GET /api/v1/health`
-- `GET /api/v1/health/ready`
-- `DELETE /users/:id` — SuperAdmin/user administrator soft-deletes a user and revokes their refresh sessions.
-- `POST /users/:id/reset-password` — SuperAdmin/user administrator sets a temporary password for a user.
-- `POST /bootstrap` — creates the first SuperAdmin only when none exists and the initial credentials are supplied through environment variables.
+A test fails whenever a route exists that is not documented there (or the reverse), so the reference cannot drift.
 
-## Authenticated endpoints
+## Conventions
 
-- `GET /auth/me`, `POST /auth/change-password`
-- `GET/POST /users`, `PATCH /users/:id`, `PATCH /users/:id/status`, `POST /users/:id/reset-password`
-- `GET/POST /groups`, `GET/PATCH/DELETE /groups/:id`
-- `POST /groups/:id/members`, `DELETE /groups/:id/members/:userId`, `PATCH /groups/:id/roles/:userId`
-- `POST /groups/:id/topics`, `PATCH /groups/:id/topics/:topicId`
-- `GET /users/assignees?groupId=` — minimal `{id,name,email}` directory
-- `GET/POST /tickets`, `GET/PATCH/DELETE /tickets/:id`
-- `POST/PATCH/DELETE /tickets/:id/comments...`
-- `POST/PATCH/DELETE /tickets/:id/links...`
-- `GET /dashboard`, `GET /activity`, `GET /notifications`
+- Base path `/api/v1`. Success: `{ success: true, data }`. Failure: `{ success: false, error: { code, message } }`.
+- Authenticate with `Authorization: Bearer <access token>` from `POST /auth/login`, or with a **personal API token** (`cfp_…`) created under Account. Tokens act as their owner (same permissions and group access), can be read-only, and cannot call `/auth/*` or manage tokens.
+- Validation errors are `422`, unknown or inaccessible records `404`, duplicates `409`, lockouts `429`. A user who must change a temporary password gets `403 PASSWORD_CHANGE_REQUIRED` everywhere except `/auth/*`.
 
-Bearer access tokens are short lived. Refresh tokens are rotated and stored in secure HttpOnly cookies. Every protected route performs backend permission checks; SuperAdmin is the only role that bypasses granular permissions.
+## Visibility rules
 
-## Group scoping
+- Grouped tickets (and their comments, links, activity, subtasks, relations) are visible to members of the group and to SuperAdmin.
+- Ungrouped tickets are visible to their creator, assignees and SuperAdmin.
+- The dashboard, activity feed, search, reports, CSV export and realtime stream are all filtered by the same rule.
 
-Tickets, comments, links, the dashboard and the activity feed only include tickets the caller may see: tickets in groups they belong to, plus ungrouped tickets they created or are assigned to. SuperAdmin sees everything. Requests for tickets or groups outside that scope return `404`.
+## Ticket editing
 
-`PATCH /tickets/:id` checks one permission per field: `tickets.edit` (title, description, dueDate, groupId, topicIds), `tickets.change_status`, `tickets.change_priority` and `tickets.assign` (assigneeIds). Moving a ticket to another group clears its topics unless new `topicIds` are sent, and all assignees must belong to the new group.
+`PATCH /tickets/:id` checks one permission per field: `tickets.edit` (title, description, dueDate, groupId, topicIds, milestoneId, parentId), `tickets.change_status`, `tickets.change_priority`, `tickets.assign` (assigneeIds). Moving a ticket to another group clears its topics and milestone unless new ones are sent, and every assignee must belong to the new group. Subtasks are one level deep and must share the parent's group.
 
-## Errors
+## Realtime
 
-Errors use `{ success: false, error: { code, message } }`. Validation failures return `422`, malformed ids `400`/`422`, duplicate values `409`, and a user who must change a temporary password receives `403 PASSWORD_CHANGE_REQUIRED` on everything except `/auth/*`.
+`GET /events` is a server-sent event stream (use `fetch` with the Authorization header). Events carry only ids and short labels (`ticket.created`, `ticket.updated`, `ticket.deleted`, `comment.created`, `notification.created`); clients refetch through the normal API. Streams are filtered per user, close after 25 minutes so tokens are re-checked, and are limited to 5 per user.
+
+## Webhooks
+
+Group leaders and creators can add webhooks per group (`/groups/:id/webhooks`). Only `https` URLs that resolve to public addresses are accepted, and the address is re-checked at connection time. Each delivery is signed: `X-Campfire-Signature: sha256=<HMAC-SHA256 of the body using the webhook secret>`, with `X-Campfire-Event` and `X-Campfire-Delivery` headers. Failed deliveries are retried twice. Format `slack` posts a ready-made message to a Slack incoming webhook.
+
+## Admin
+
+`/admin/data/*` (SuperAdmin only) finds tickets by age, group, status or trash state, restores or permanently deletes them (`confirm: "DELETE"` required), restores deleted groups, and cleans up old activity, notifications or audit records. `/audit` (permission `audit.view`) lists security-relevant events.

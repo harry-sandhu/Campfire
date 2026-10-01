@@ -15,7 +15,8 @@ const RealtimeContext = createContext<{ subscribe: (listener: Listener) => () =>
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const listeners = useRef(new Set<Listener>());
-  const userId = user?.id;
+  // The API blocks everything except /auth until a temporary password is changed, so wait for that.
+  const userId = user && !user.mustChangePassword ? user.id : undefined;
 
   useEffect(() => {
     if (!userId) return;

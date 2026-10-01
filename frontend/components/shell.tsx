@@ -45,6 +45,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }, [can]);
 
   if (!user) return null;
+  if (user.mustChangePassword) {
+    return (
+      <div className="forced-shell">
+        <div className="topbar"><button type="button" className="ghost" onClick={async () => { await logout(); router.replace("/login"); }}>Sign out</button></div>
+        <section className="workspace">{children}</section>
+      </div>
+    );
+  }
   const items = NAV.filter((item) => (item.superAdminOnly ? user.role === "SUPERADMIN" : !item.permission || can(item.permission)));
 
   return (

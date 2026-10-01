@@ -2,13 +2,13 @@ import { Router } from "express";
 import { z } from "zod";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { Group, Ticket, Topic, User } from "../models/index.js";
-import { canManageGroup, canViewGroup, isCreator, isMember, isSuperAdmin } from "../utils/access.js";
+import { canManageGroup, isCreator, isMember, isSuperAdmin } from "../utils/access.js";
 import { handle } from "../utils/async-handler.js";
 import { HttpError, badRequest, forbidden, notFound } from "../utils/errors.js";
 import { ok } from "../utils/http.js";
 import { escapeRegex, objectId } from "../utils/validation.js";
 import { audit } from "../services/audit.js";
-import { loadGroup, loadManageableGroup, loadViewableGroup } from "../services/group-service.js";
+import { loadManageableGroup, loadViewableGroup } from "../services/group-service.js";
 
 const router = Router();
 router.use(authenticate);

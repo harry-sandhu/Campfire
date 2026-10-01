@@ -318,3 +318,4 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: 
   .add-member, .comment-form { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+.forced-shell { min-height: 100vh; padding: 20px; }
