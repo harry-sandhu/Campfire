@@ -7,7 +7,7 @@ test("create a group and a ticket, comment with Markdown, change status", async 
   await signInAsAdmin(page);
 
   await page.goto("/groups");
-  await page.getByRole("button", { name: "+ Create group" }).click();
+  await page.getByRole("button", { name: "Create group", exact: true }).click();
   const groupDialog = page.getByRole("dialog", { name: "Create group" });
   await groupDialog.getByLabel("Name").fill("Operations");
   await groupDialog.getByRole("button", { name: "Create group" }).click();
@@ -26,6 +26,7 @@ test("create a group and a ticket, comment with Markdown, change status", async 
   await expect(page.locator(".comment strong", { hasText: "important" })).toBeVisible();
 
   await page.getByLabel("Status").selectOption("IN_PROGRESS");
+  await page.getByText("Activity", { exact: false }).locator("visible=true").first().click(); // activity is collapsed by default
   await expect(page.getByText(/status changed/i).first()).toBeVisible();
 });
 
@@ -45,7 +46,7 @@ test("a new user must change their password and cannot see another group's ticke
   await expect(page).toHaveURL(/localhost:3100\/$/);
 
   await page.goto("/tickets");
-  await expect(page.getByText("No tickets found")).toBeVisible();
+  await expect(page.getByText("No tickets yet")).toBeVisible();
   await expect(page.getByText("Top secret plan")).toHaveCount(0);
   await page.goto(`/tickets/${ticket.id}`);
   await expect(page.getByText("Ticket not found")).toBeVisible();

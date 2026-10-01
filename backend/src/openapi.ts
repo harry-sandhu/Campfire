@@ -23,6 +23,7 @@ export const operations: Op[] = [
   { method: "get", path: "/tickets", tag: "Tickets", summary: "List tickets you can see (filters: search, groupId, topicId, milestoneId, status, priority, assigneeId, mine, page, limit).", permission: "tickets.view" },
   { method: "post", path: "/tickets", tag: "Tickets", summary: "Create a ticket.", permission: "tickets.create", body: b(createInput) },
   { method: "get", path: "/tickets/export", tag: "Tickets", summary: "Export visible tickets as CSV (same filters as list).", permission: "tickets.view" },
+  { method: "post", path: "/tickets/restore", tag: "Tickets", summary: "Undo a recent delete (by the person who deleted it, within 10 minutes).", permission: "tickets.delete" },
   { method: "post", path: "/tickets/bulk", tag: "Tickets", summary: "Apply status, priority, assign, unassign, move or delete to up to 100 tickets; returns per-ticket results." },
   { method: "post", path: "/tickets/import", tag: "Tickets", summary: "Import up to 200 rows as tickets.", permission: "tickets.create" },
   { method: "get", path: "/tickets/:id", tag: "Tickets", summary: "Ticket with comments, links, activity, subtasks, parent, relations and watch state.", permission: "tickets.view" },

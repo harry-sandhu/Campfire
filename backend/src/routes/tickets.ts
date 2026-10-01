@@ -5,7 +5,7 @@ import { ActivityLog, Comment, Ticket, TicketLink } from "../models/index.js";
 import { createInput, listQuery, statuses, priorities, updateInput } from "../schemas/ticket.js";
 import { audit } from "../services/audit.js";
 import { publish } from "../services/events.js";
-import { buildTicketFilter, createTicket, filterViewers, interestedUsers, notify, recordActivity, softDeleteTicket, updateTicket } from "../services/ticket-service.js";
+import { buildTicketFilter, createTicket, filterViewers, interestedUsers, notify, recordActivity, restoreRecentlyDeleted, softDeleteTicket, updateTicket, withCommentCounts } from "../services/ticket-service.js";
 import { hasPermission, loadVisibleTicket, ticketVisibilityFilter } from "../utils/access.js";
 import { handle } from "../utils/async-handler.js";
 import { toCsv } from "../utils/csv.js";
@@ -36,7 +36,7 @@ router.get("/", requirePermission("tickets.view"), handle(async (request, respon
     populateTicket(Ticket.find(filter).sort({ updatedAt: -1 }).skip((q.page - 1) * q.limit).limit(q.limit)).lean(),
     Ticket.countDocuments(filter),
   ]);
-  ok(response, { tickets: tickets.map(toView), page: q.page, limit: q.limit, total, pages: Math.ceil(total / q.limit) });
+  ok(response, { tickets: (await withCommentCounts(tickets)).map(toView), page: q.page, limit: q.limit, total, pages: Math.ceil(total / q.limit) });
 }));
 
 router.get("/export", requirePermission("tickets.view"), handle(async (request, response) => {
@@ -85,6 +85,16 @@ router.post("/bulk", handle(async (request, response) => {
   }
   if (action === "delete") await audit(request, user.id, { action: "TICKETS_BULK_DELETED", targetType: "Ticket", summary: `Bulk deleted ${results.filter((r) => r.ok).length} tickets` });
   ok(response, { results, succeeded: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length });
+}));
+
+router.post("/restore", requirePermission("tickets.delete"), handle(async (request, response) => {
+  const { ids } = z.object({ ids: z.array(objectId).min(1).max(100) }).parse(request.body);
+  let restored = 0;
+  for (const id of unique(ids)) {
+    try { await restoreRecentlyDeleted(request.user!, id); restored++; } catch { /* skip tickets that cannot be restored */ }
+  }
+  if (restored) await audit(request, request.user!.id, { action: "TICKETS_RESTORED", targetType: "Ticket", summary: `Restored ${restored} tickets (undo)`, metadata: { count: restored } });
+  ok(response, { restored });
 }));
 
 const importRow = z.object({

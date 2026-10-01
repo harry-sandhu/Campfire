@@ -177,3 +177,31 @@ describe("templates and recurring tickets", () => {
     expect(await Group.countDocuments()).toBe(1);
   });
 });
+
+describe("dashboard lists, comment counts and undo", () => {
+  it("lists overdue and due-soon tickets and counts comments", async () => {
+    const { alice, make } = await world();
+    const late = await make("Late", { dueDate: new Date(Date.now() - 2 * 86400000).toISOString() });
+    await make("Soon", { dueDate: new Date(Date.now() + 2 * 86400000).toISOString() });
+    await make("Later", { dueDate: new Date(Date.now() + 30 * 86400000).toISOString() });
+    await api().post(`/api/v1/tickets/${late}/comments`).set(alice.auth).send({ body: "x" });
+    const dash = (await api().get("/api/v1/dashboard").set(alice.auth)).body.data;
+    expect(dash.overdue.map((t: any) => t.title)).toEqual(["Late"]);
+    expect(dash.dueSoon.map((t: any) => t.title)).toEqual(["Soon"]);
+    expect(dash.counts.overdue).toBe(1);
+    const list = (await api().get("/api/v1/tickets").set(alice.auth)).body.data.tickets;
+    expect(list.find((t: any) => t.title === "Late").commentCount).toBe(1);
+  });
+
+  it("lets only the deleter undo a recent delete", async () => {
+    const { alice, bob, make } = await world();
+    const id = await make("Oops");
+    await api().delete(`/api/v1/tickets/${id}`).set(alice.auth);
+    expect((await api().post("/api/v1/tickets/restore").set(bob.auth).send({ ids: [id] })).body.data.restored).toBe(0);
+    expect((await api().post("/api/v1/tickets/restore").set(alice.auth).send({ ids: [id] })).body.data.restored).toBe(1);
+    expect((await api().get(`/api/v1/tickets/${id}`).set(alice.auth)).status).toBe(200);
+    await api().delete(`/api/v1/tickets/${id}`).set(alice.auth);
+    await Ticket.updateOne({ _id: id }, { deletedAt: new Date(Date.now() - 3600000) }, { timestamps: false });
+    expect((await api().post("/api/v1/tickets/restore").set(alice.auth).send({ ids: [id] })).body.data.restored).toBe(0);
+  });
+});

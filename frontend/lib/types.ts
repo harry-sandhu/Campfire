@@ -39,6 +39,7 @@ export type Ticket = {
   parentId?: string | null;
   topicIds?: { _id: string; name: string }[];
   createdById?: Ref;
+  commentCount?: number;
 };
 
 export type Comment = { _id: string; body: string; createdAt: string; authorId?: Ref };

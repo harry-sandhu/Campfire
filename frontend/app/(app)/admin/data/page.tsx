@@ -4,7 +4,7 @@ import { useAuth } from "../../../../components/auth-provider";
 import { Modal } from "../../../../components/modal";
 import { PageHeader } from "../../../../components/shell";
 import { useToast } from "../../../../components/toast";
-import { Empty, ErrorNote, Spinner, Stat } from "../../../../components/ui";
+import { Empty, ErrorNote, Skeleton, Stat } from "../../../../components/ui";
 import { api, json } from "../../../../lib/api";
 import { formatDate, label } from "../../../../lib/format";
 import { useDebounce } from "../../../../lib/use-debounce";
@@ -83,13 +83,13 @@ export default function DataPage() {
   return (
     <>
       <PageHeader eyebrow="ADMIN" title="Data management" />
-      {summary.loading && !summary.data ? <Spinner /> : counts && (
+      {summary.loading && !summary.data ? <Skeleton rows={5} /> : counts && (
         <div className="stats">
-          <Stat label="Active tickets" value={counts.tickets} tone="blue" />
-          <Stat label="In trash" value={counts.deletedTickets} tone="red" />
-          <Stat label="Comments" value={counts.comments} tone="amber" />
-          <Stat label="Activity records" value={counts.activity} tone="green" />
-          {summary.data?.storage && <Stat label="Database size" value={mb(summary.data.storage.dataSize)} tone="blue" />}
+          <Stat label="Active tickets" value={counts.tickets} />
+          <Stat label="In trash" value={counts.deletedTickets} />
+          <Stat label="Comments" value={counts.comments} />
+          <Stat label="Activity records" value={counts.activity} />
+          {summary.data?.storage && <Stat label="Database size" value={mb(summary.data.storage.dataSize)} />}
         </div>
       )}
 
@@ -103,7 +103,7 @@ export default function DataPage() {
           <input className="search" type="search" aria-label="Search" placeholder="Number or title…" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
         </div>
         <ErrorNote message={found.error} />
-        {found.loading && !found.data ? <Spinner /> : !rows.length ? <Empty title="No tickets match" /> : <>
+        {found.loading && !found.data ? <Skeleton rows={5} /> : !rows.length ? <Empty title="No tickets match" /> : <>
           <div className="bulk-bar">
             <strong>{selected.length} selected · {found.data!.total} match</strong>
             <button type="button" className="ghost" disabled={!selected.length} onClick={() => void restore()}>Restore selected</button>

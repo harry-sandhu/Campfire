@@ -1,4 +1,4 @@
-const PRODUCTION_API = "https://campfire-kitn.onrender.com/api/v1";
+const PRODUCTION_API = "https://api.autodao.tech/api/v1";
 const base = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? PRODUCTION_API : "http://localhost:4000/api/v1");
 
 export class ApiError extends Error {

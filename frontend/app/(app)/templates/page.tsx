@@ -5,7 +5,7 @@ import { useAuth } from "../../../components/auth-provider";
 import { ConfirmDialog, Modal } from "../../../components/modal";
 import { PageHeader } from "../../../components/shell";
 import { useToast } from "../../../components/toast";
-import { Empty, ErrorNote, PriorityPill, Spinner } from "../../../components/ui";
+import { Empty, ErrorNote, PriorityPill, Skeleton } from "../../../components/ui";
 import { api, json } from "../../../lib/api";
 import { formatDate, label } from "../../../lib/format";
 import { useLoad } from "../../../lib/use-load";
@@ -39,11 +39,11 @@ export default function TemplatesPage() {
 
   return (
     <>
-      <PageHeader title="Templates"><button onClick={() => { setFormError(""); setCreating(true); }}>+ New template</button></PageHeader>
+      <PageHeader title="Templates"><button onClick={() => { setFormError(""); setCreating(true); }}>New template</button></PageHeader>
       <section className="panel">
         <div className="panel-head"><div><h2>Ticket templates</h2><p className="muted">Reusable tickets. Recurring templates create a new ticket on a schedule (checked every few minutes while the server is awake).</p></div></div>
         <ErrorNote message={error} />
-        {loading && !data ? <Spinner /> : !data?.templates.length ? <Empty title="No templates yet" hint="Save a ticket you create often, or set one to repeat weekly." /> : (
+        {loading && !data ? <Skeleton rows={5} /> : !data?.templates.length ? <Empty title="No templates yet" hint="Save a ticket you create often, or set one to repeat weekly." /> : (
           <div className="people-list">
             {data.templates.map((t) => (
               <div className="person-row" key={t.id}>

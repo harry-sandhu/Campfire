@@ -8,6 +8,7 @@ import { MarkdownEditor } from "./markdown-editor";
 import { useAuth } from "./auth-provider";
 import { Modal } from "./modal";
 import { useToast } from "./toast";
+import { PersonPicker } from "./person-picker";
 import { ErrorNote } from "./ui";
 
 export function TicketForm({ defaultGroupId = "", onClose }: { defaultGroupId?: string; onClose: () => void }) {
@@ -73,7 +74,7 @@ export function TicketForm({ defaultGroupId = "", onClose }: { defaultGroupId?: 
         <div className="form-row">
           <label>Group
             <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-              <option value="">No group (only you and assignees)</option>
+              <option value="">No group (private)</option>
               {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </label>
@@ -87,9 +88,7 @@ export function TicketForm({ defaultGroupId = "", onClose }: { defaultGroupId?: 
           </fieldset>
         )}
         {canAssign && people.length > 0 && (
-          <fieldset><legend>Assign to</legend>
-            <div className="check-grid">{people.map((p) => <label key={p.id} className="check"><input type="checkbox" checked={assigneeIds.includes(p.id)} onChange={() => toggle(assigneeIds, setAssigneeIds, p.id)} />{p.name}</label>)}</div>
-          </fieldset>
+          <div className="field"><span className="label-text">Assign to</span><PersonPicker people={people} value={assigneeIds} onChange={setAssigneeIds} label="Assign to" empty="Unassigned" /></div>
         )}
         <ErrorNote message={error} />
         <div className="modal-actions"><button type="button" className="ghost" onClick={onClose}>Cancel</button><button disabled={busy}>{busy ? "Creating…" : "Create ticket"}</button></div>

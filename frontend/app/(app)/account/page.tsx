@@ -5,7 +5,7 @@ import { useAuth } from "../../../components/auth-provider";
 import { ConfirmDialog, Modal } from "../../../components/modal";
 import { PageHeader } from "../../../components/shell";
 import { useToast } from "../../../components/toast";
-import { ErrorNote, Spinner } from "../../../components/ui";
+import { ErrorNote, Skeleton } from "../../../components/ui";
 import { api, apiOrigin, json, setAccessToken } from "../../../lib/api";
 import { formatDate, timeAgo } from "../../../lib/format";
 import { useLoad } from "../../../lib/use-load";
@@ -77,7 +77,7 @@ export default function AccountPage() {
         <section className="panel spaced">
           <div className="panel-head"><div><h2>Signed-in devices</h2><p className="muted">Sessions that can currently refresh. Revoke any you do not recognise.</p></div>
             {(sessions.data?.sessions.length ?? 0) > 1 && <button type="button" className="ghost" onClick={() => void api("/auth/sessions/revoke-others", { method: "POST" }).then(() => { toast("Other devices signed out"); sessions.reload(); })}>Sign out other devices</button>}</div>
-          {sessions.loading && !sessions.data ? <Spinner /> : <div className="people-list">
+          {sessions.loading && !sessions.data ? <Skeleton rows={5} /> : <div className="people-list">
             {sessions.data?.sessions.map((s) => (
               <div className="person-row" key={s.id}>
                 <div><strong>{deviceName(s.userAgent)}{s.current && <span className="chip">This device</span>}</strong><small>{s.ip || "unknown IP"} · active {timeAgo(s.lastActive)}</small></div>
@@ -88,7 +88,7 @@ export default function AccountPage() {
         </section>
 
         <section className="panel spaced">
-          <div className="panel-head"><div><h2>API tokens</h2><p className="muted">Personal tokens act as you, with your permissions and group access. Use them in scripts or integrations. <a className="link-button" href={`${apiOrigin}/api/docs`} target="_blank" rel="noopener noreferrer">API reference ↗</a></p></div><button type="button" onClick={() => { setTokenError(""); setCreating(true); }}>+ New token</button></div>
+          <div className="panel-head"><div><h2>API tokens</h2><p className="muted">Personal tokens act as you, with your permissions and group access. Use them in scripts or integrations. <a className="link-button" href={`${apiOrigin}/api/docs`} target="_blank" rel="noopener noreferrer">API reference ↗</a></p></div><button type="button" onClick={() => { setTokenError(""); setCreating(true); }}>New token</button></div>
           <div className="people-list">
             {tokens.data?.tokens.map((t) => (
               <div className="person-row" key={t.id}>

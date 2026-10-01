@@ -23,3 +23,17 @@ Use the `frontend` directory as the project root and set `NEXT_PUBLIC_API_URL` t
 - **Webhooks** only deliver to public https addresses. Slack incoming webhooks work as-is.
 - **Logs** carry an `x-request-id` per request (an incoming id is honoured) and never include Authorization headers or cookies.
 - **Storage:** the SuperAdmin → Data page shows database size and lets you delete old tickets, activity, notifications and audit records to stay inside a free tier.
+
+## Custom domains (autodao.tech)
+
+Frontend on Vercel at `https://autodao.tech`, API on Render at `https://api.autodao.tech`. Because both share the parent domain, the sign-in cookie is same-site and works in Safari and with strict browser privacy settings.
+
+Do this in order:
+
+1. **Render:** add `api.autodao.tech` under Custom Domains and wait for the certificate. Check `https://api.autodao.tech/health/ready`.
+2. **Render env (first pass):** `FRONTEND_URL=https://autodao.tech`, and `CORS_ORIGINS` set to your current Vercel URL (and `https://www.autodao.tech` if used) so the old and new sites both work during the switch. Leave `COOKIE_DOMAIN` empty.
+3. **Vercel:** add `autodao.tech` (and `www`) under Domains and set `NEXT_PUBLIC_API_URL=https://api.autodao.tech/api/v1` and `NEXT_PUBLIC_SITE_URL=https://autodao.tech` for Production. Redeploy: these values are fixed at build time.
+4. **Render env (second pass), once the site calls the new API:** `COOKIE_DOMAIN=.autodao.tech`, then redeploy. Setting it earlier makes browsers reject the cookie.
+5. Everyone signs in once more. Then remove the old Vercel/Render URLs from `CORS_ORIGINS`.
+
+Vercel preview deployments use other origins; add them to `CORS_ORIGINS` only if you need to test against them.

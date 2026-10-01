@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useAuth } from "../../../components/auth-provider";
 import { PageHeader } from "../../../components/shell";
-import { Empty, ErrorNote, Spinner } from "../../../components/ui";
+import { Empty, ErrorNote, Skeleton } from "../../../components/ui";
 import { api } from "../../../lib/api";
 import { label, timeAgo } from "../../../lib/format";
 import { useDebounce } from "../../../lib/use-debounce";
@@ -30,7 +30,7 @@ export default function AuditPage() {
             <select aria-label="Action" value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}><option value="">All actions</option>{data?.actions.map((a) => <option key={a} value={a}>{label(a)}</option>)}</select>
           </div>
           <ErrorNote message={error} />
-          {loading && !data ? <Spinner /> : !data?.entries.length ? <Empty title="No entries" /> : (
+          {loading && !data ? <Skeleton rows={5} /> : !data?.entries.length ? <Empty title="No entries" /> : (
             <div className="table-wrap">
               <table>
                 <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Details</th></tr></thead>

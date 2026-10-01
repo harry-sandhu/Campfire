@@ -5,7 +5,7 @@ import { useAuth } from "../../../components/auth-provider";
 import { Modal } from "../../../components/modal";
 import { PageHeader } from "../../../components/shell";
 import { useToast } from "../../../components/toast";
-import { Avatar, Empty, ErrorNote, Spinner } from "../../../components/ui";
+import { Avatar, Empty, ErrorNote, Skeleton } from "../../../components/ui";
 import { api, json } from "../../../lib/api";
 import { useLoad } from "../../../lib/use-load";
 import type { Group } from "../../../lib/types";
@@ -30,15 +30,15 @@ export default function GroupsPage() {
 
   return (
     <>
-      <PageHeader title="Groups">{can("groups.create") && <button onClick={() => setCreating(true)}>+ Create group</button>}</PageHeader>
+      <PageHeader title="Groups">{can("groups.create") && <button onClick={() => setCreating(true)}>Create group</button>}</PageHeader>
       <section className="panel">
         <div className="panel-head"><div><h2>Your groups</h2><p className="muted">Private workspaces with their own members, topics and tickets.</p></div></div>
         <ErrorNote message={error} />
-        {loading && !data ? <Spinner /> : !data?.groups.length ? <Empty title="No groups yet" hint={can("groups.create") ? "Create a group to start organising work." : "Ask an administrator to add you to a group."} /> : (
+        {loading && !data ? <Skeleton rows={4} /> : !data?.groups.length ? <Empty title="No groups yet" hint={can("groups.create") ? "Create a group to start organising work." : "Ask an administrator to add you to a group."} /> : (
           <div className="people-list">
             {data.groups.map((g) => (
               <Link key={g.id} href={`/groups/${g.id}`} className="person-row">
-                <Avatar name={g.name} />
+                <Avatar name={g.name} size={32} />
                 <div><strong>{g.name}</strong><small>{g.description || `${g.memberIds.length} members`}</small></div>
                 <span className="status">{g.memberIds.length} members</span>
               </Link>

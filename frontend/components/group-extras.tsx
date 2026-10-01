@@ -28,7 +28,7 @@ export function MilestonesSection({ groupId, manager }: { groupId: string; manag
 
   return (
     <section className="panel spaced">
-      <div className="panel-head"><div><h2>Milestones</h2><p className="muted">Group tickets toward a goal and track progress.</p></div>{manager && <button type="button" onClick={() => { setError(""); setCreating(true); }}>+ Milestone</button>}</div>
+      <div className="panel-head"><div><h2>Milestones</h2><p className="muted">Group tickets toward a goal and track progress.</p></div>{manager && <button type="button" onClick={() => { setError(""); setCreating(true); }}>New milestone</button>}</div>
       <div className="people-list">
         {data?.milestones.map((m) => (
           <div className="person-row" key={m.id}>
@@ -85,7 +85,7 @@ export function WebhooksSection({ groupId }: { groupId: string }) {
 
   return (
     <section className="panel spaced">
-      <div className="panel-head"><div><h2>Webhooks</h2><p className="muted">Send ticket events to other tools. Slack incoming webhooks work directly. Only https URLs on the public internet are allowed.</p></div><button type="button" onClick={() => { setError(""); setCreating(true); }}>+ Webhook</button></div>
+      <div className="panel-head"><div><h2>Webhooks</h2><p className="muted">Send ticket events to other tools. Slack incoming webhooks work directly. Only https URLs on the public internet are allowed.</p></div><button type="button" onClick={() => { setError(""); setCreating(true); }}>Add webhook</button></div>
       <div className="people-list">
         {data?.webhooks.map((h) => (
           <div className="person-row" key={h.id}>

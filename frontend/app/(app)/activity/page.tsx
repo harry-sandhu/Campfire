@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useAuth } from "../../../components/auth-provider";
 import { PageHeader } from "../../../components/shell";
-import { Empty, ErrorNote, Spinner } from "../../../components/ui";
+import { Empty, ErrorNote, Skeleton } from "../../../components/ui";
 import { api } from "../../../lib/api";
 import { label, timeAgo } from "../../../lib/format";
 import { useLoad } from "../../../lib/use-load";
@@ -18,7 +18,7 @@ export default function ActivityPage() {
       <PageHeader title="Activity" />
       <section className="panel">
         <div className="panel-head"><div><h2>Recent events</h2><p className="muted">Changes to tickets you can see.</p></div></div>
-        {!allowed ? <Empty title="No access" hint="You need the activity.view permission." /> : error ? <ErrorNote message={error} /> : loading && !data ? <Spinner /> : !data?.logs.length ? <Empty title="No activity yet" /> : (
+        {!allowed ? <Empty title="No access" hint="You need the activity.view permission." /> : error ? <ErrorNote message={error} /> : loading && !data ? <Skeleton rows={5} /> : !data?.logs.length ? <Empty title="No activity yet" /> : (
           <div className="activity-list activity-page">
             {data.logs.map((log) => (
               <p key={log._id}>

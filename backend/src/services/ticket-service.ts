@@ -1,4 +1,4 @@
-import { ActivityLog, Counter, Group, Milestone, Notification, Ticket, Topic, User } from "../models/index.js";
+import { ActivityLog, Comment, Counter, Group, Milestone, Notification, Ticket, Topic, User } from "../models/index.js";
 import { fieldPermission, type CreateInput, type ListQuery, type UpdateInput } from "../schemas/ticket.js";
 import type { AuthUser } from "../types/auth.js";
 import { canViewGroup, hasPermission, ticketVisibilityFilter } from "../utils/access.js";
@@ -205,4 +205,26 @@ export async function buildTicketFilter(user: AuthUser, q: Partial<ListQuery>) {
     and.push({ $or: [{ ticketNumber: pattern }, { title: pattern }, { description: pattern }] });
   }
   return { $and: and };
+}
+
+/** Adds `commentCount` to ticket objects (one grouped query for the whole page). */
+export async function withCommentCounts<T extends { _id: unknown }>(tickets: T[]) {
+  if (!tickets.length) return tickets.map((t) => ({ ...t, commentCount: 0 }));
+  const counts = await Comment.aggregate([{ $match: { ticketId: { $in: tickets.map((t) => t._id) }, deletedAt: null } }, { $group: { _id: "$ticketId", n: { $sum: 1 } } }]);
+  const byId = new Map(counts.map((c) => [String(c._id), c.n as number]));
+  return tickets.map((t) => ({ ...t, commentCount: byId.get(String(t._id)) ?? 0 }));
+}
+
+const UNDO_WINDOW_MS = 10 * 60 * 1000;
+
+/** Undo for soft deletes: only the person who deleted it (or SuperAdmin) can restore, and only shortly afterwards. */
+export async function restoreRecentlyDeleted(user: AuthUser, ticketId: string) {
+  const visibility = await ticketVisibilityFilter(user);
+  const ticket = await Ticket.findOne({ $and: [{ _id: ticketId, deletedAt: { $gte: new Date(Date.now() - UNDO_WINDOW_MS) } }, visibility] });
+  if (!ticket) throw notFound("TICKET_NOT_FOUND", "Nothing to restore");
+  if (user.role !== "SUPERADMIN" && String(ticket.updatedById) !== user.id) throw forbidden("PERMISSION_DENIED", "Only the person who deleted a ticket can undo it");
+  await Ticket.updateOne({ _id: ticket._id }, { deletedAt: null }, { timestamps: false });
+  await recordActivity(ticket._id, user.id, "RESTORED");
+  publish({ type: "ticket.updated", ticketId: String(ticket._id), groupId: ticket.groupId ? String(ticket.groupId) : null, data: { ticketNumber: ticket.ticketNumber, title: ticket.title, changed: ["restored"] } });
+  return ticket;
 }

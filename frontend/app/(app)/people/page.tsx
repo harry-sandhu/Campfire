@@ -4,7 +4,7 @@ import { useAuth } from "../../../components/auth-provider";
 import { ConfirmDialog, Modal } from "../../../components/modal";
 import { PageHeader } from "../../../components/shell";
 import { useToast } from "../../../components/toast";
-import { Avatar, Empty, ErrorNote, Spinner } from "../../../components/ui";
+import { Avatar, Empty, ErrorNote, Skeleton } from "../../../components/ui";
 import { api, json } from "../../../lib/api";
 import { useLoad } from "../../../lib/use-load";
 import type { User } from "../../../lib/types";
@@ -28,11 +28,11 @@ export default function PeoplePage() {
 
   return (
     <>
-      <PageHeader title="People">{can("users.create") && <button onClick={() => setDialog({ kind: "create" })}>+ Create user</button>}</PageHeader>
+      <PageHeader title="People">{can("users.create") && <button onClick={() => setDialog({ kind: "create" })}>Create user</button>}</PageHeader>
       <section className="panel">
         <div className="panel-head"><div><h2>People</h2><p className="muted">Create users and manage workspace access.</p></div></div>
         <ErrorNote message={error} />
-        {loading && !data ? <Spinner /> : !data?.users.length ? <Empty title="No users" /> : (
+        {loading && !data ? <Skeleton rows={5} /> : !data?.users.length ? <Empty title="No users" /> : (
           <div className="people-list">
             {data.users.map((person) => (
               <div className="person-row" key={person.id}>

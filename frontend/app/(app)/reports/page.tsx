@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { PageHeader } from "../../../components/shell";
-import { Empty, ErrorNote, Spinner, Stat } from "../../../components/ui";
+import { Empty, ErrorNote, Skeleton, Stat, statusColor } from "../../../components/ui";
 import { api } from "../../../lib/api";
 import { label } from "../../../lib/format";
 import { useLoad } from "../../../lib/use-load";
@@ -13,7 +13,7 @@ type Report = {
 };
 
 /** Horizontal bars with the value printed on the right, so the chart reads without a legend. */
-function Bars({ rows, tone = "var(--chart-1)" }: { rows: { name: string; value: number }[]; tone?: string }) {
+function Bars({ rows, tone = "var(--chart-1)" }: { rows: { name: string; value: number; color?: string }[]; tone?: string }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   if (!rows.length) return <p className="muted">Nothing to show.</p>;
   return (
@@ -21,7 +21,7 @@ function Bars({ rows, tone = "var(--chart-1)" }: { rows: { name: string; value: 
       {rows.map((r) => (
         <li key={r.name}>
           <span className="bar-label">{r.name}</span>
-          <span className="bar-track"><span className="bar-fill" style={{ width: `${(r.value / max) * 100}%`, background: tone }} /></span>
+          <span className="bar-track"><span className="bar-fill" style={{ width: `${(r.value / max) * 100}%`, background: r.color ?? tone }} /></span>
           <span className="bar-value">{r.value}</span>
         </li>
       ))}
@@ -69,17 +69,17 @@ export default function ReportsPage() {
         <select aria-label="Range" value={days} onChange={(e) => setDays(Number(e.target.value))}>{[30, 90, 180, 365].map((d) => <option key={d} value={d}>Last {d} days</option>)}</select>
       </PageHeader>
       <ErrorNote message={error} />
-      {loading && !data ? <Spinner /> : data && (total === 0 ? <Empty title="No tickets to report on yet" /> : <>
+      {loading && !data ? <Skeleton rows={6} /> : data && (total === 0 ? <Empty title="No tickets to report on yet" /> : <>
         <div className="stats">
-          <Stat label="Tickets" value={total} tone="blue" />
-          <Stat label="Overdue" value={data.overdue} tone="red" />
-          <Stat label={`Completed (${data.days}d)`} value={data.completedInRange} tone="green" />
-          <Stat label="Avg. days to complete" value={data.avgLeadTimeDays ?? "—"} tone="amber" />
+          <Stat label="Tickets" value={total} />
+          <Stat label="Overdue" value={data.overdue} alert />
+          <Stat label={`Completed (${data.days}d)`} value={data.completedInRange} />
+          <Stat label="Avg. days to complete" value={data.avgLeadTimeDays ?? "—"} />
         </div>
         <div className="report-grid">
           <section className="panel pad"><h2>Throughput</h2><Throughput series={data.series} /></section>
-          <section className="panel pad"><h2>By status</h2><Bars rows={STATUSES.map((s) => ({ name: label(s), value: data.byStatus[s] ?? 0 }))} /></section>
-          <section className="panel pad"><h2>Open by priority</h2><Bars tone="var(--chart-3)" rows={["URGENT", "HIGH", "MEDIUM", "LOW", "NO_PRIORITY"].map((p) => ({ name: label(p), value: data.byPriority[p] ?? 0 }))} /></section>
+          <section className="panel pad"><h2>By status</h2><Bars rows={STATUSES.map((s) => ({ name: label(s), value: data.byStatus[s] ?? 0, color: statusColor(s) }))} /></section>
+          <section className="panel pad"><h2>Open by priority</h2><Bars rows={["URGENT", "HIGH", "MEDIUM", "LOW", "NO_PRIORITY"].map((p) => ({ name: label(p), value: data.byPriority[p] ?? 0, color: p === "URGENT" ? "var(--p-urgent)" : p === "HIGH" ? "var(--p-high)" : "var(--s-open)" }))} /></section>
           <section className="panel pad"><h2>Open by assignee</h2><Bars tone="var(--chart-2)" rows={data.byAssignee.map((a) => ({ name: a.name, value: a.count }))} /></section>
           <section className="panel pad"><h2>Open by group</h2><Bars rows={data.byGroup.map((g) => ({ name: g.name, value: g.count }))} /></section>
         </div>

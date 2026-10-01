@@ -49,7 +49,7 @@ export function ImportModal({ groups, defaultGroupId, onClose, onDone }: { group
         <p className="muted note">Use a header row with <strong>Title</strong> and optionally Description, Priority, Status and Due date. Exports from Campfire can be re-imported.</p>
         <label>Group
           <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">No group (only you and assignees)</option>
+            <option value="">No group (private)</option>
             {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
         </label>
