@@ -20,14 +20,14 @@ router.get("/", handle(async (request, response) => {
   const now = new Date();
   const weekAhead = new Date(now.getTime() + 7 * DAY);
   const mine = { $or: [{ assigneeId: user.id }, { assigneeIds: user.id }] };
-  const list = async (extra: object[], sort: Record<string, 1 | -1>) => (await withCommentCounts(await populate(Ticket.find({ $and: [...base, ...extra] }).sort(sort).limit(8)).lean())).map(toView);
+  const list = async (extra: object[], sort: Record<string, 1 | -1>) => (await withCommentCounts(await populate(Ticket.find({ $and: [...base, ...extra] }).collation({ locale: "en", numericOrdering: true }).sort(sort).limit(8)).lean())).map(toView);
 
   const [counts, overdueCount, overdue, dueSoon, assigned, recent] = await Promise.all([
     Ticket.aggregate([{ $match: { $and: base } }, { $group: { _id: "$status", count: { $sum: 1 } } }]),
     Ticket.countDocuments({ $and: [...base, OPEN, { dueDate: { $lt: now } }] }),
     list([OPEN, { dueDate: { $lt: now } }], { dueDate: 1 }),
     list([OPEN, { dueDate: { $gte: now, $lte: weekAhead } }], { dueDate: 1 }),
-    list([mine, OPEN], { updatedAt: -1 }),
+    list([mine, OPEN], { ticketNumber: 1 }),
     list([], { updatedAt: -1 }),
   ]);
   const byStatus = Object.fromEntries(counts.map((item) => [item._id, item.count]));

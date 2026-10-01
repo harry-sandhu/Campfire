@@ -33,7 +33,10 @@ router.get("/", requirePermission("tickets.view"), handle(async (request, respon
   const q = listQuery.parse(request.query);
   const filter = await buildTicketFilter(request.user!, q);
   const [tickets, total] = await Promise.all([
-    populateTicket(Ticket.find(filter).sort({ updatedAt: -1 }).skip((q.page - 1) * q.limit).limit(q.limit)).lean(),
+    // "Assigned to me" lists lower ticket numbers first (numeric, so TKT-2 comes before TKT-10).
+    (q.mine === "true"
+      ? populateTicket(Ticket.find(filter).collation({ locale: "en", numericOrdering: true }).sort({ ticketNumber: 1 }).skip((q.page - 1) * q.limit).limit(q.limit))
+      : populateTicket(Ticket.find(filter).sort({ updatedAt: -1 }).skip((q.page - 1) * q.limit).limit(q.limit))).lean(),
     Ticket.countDocuments(filter),
   ]);
   ok(response, { tickets: (await withCommentCounts(tickets)).map(toView), page: q.page, limit: q.limit, total, pages: Math.ceil(total / q.limit) });
