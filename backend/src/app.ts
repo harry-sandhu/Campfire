@@ -15,6 +15,7 @@ import { notificationsRouter } from "./routes/notifications.js";
 import { activityRouter } from "./routes/activity.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { docsRouter } from "./routes/docs.js";
+import { groupsRouter } from "./routes/groups.js";
 
 export function createApp() {
   const app = express();
@@ -29,6 +30,7 @@ export function createApp() {
   app.use("/api/v1/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }), authRouter);
   app.use("/api/v1/bootstrap", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5 }), bootstrapRouter);
   app.use("/api/v1/users", usersRouter);
+  app.use("/api/v1/groups", groupsRouter);
   app.use("/api/v1/tickets", ticketsRouter);
   app.use("/api/v1/notifications", notificationsRouter);
   app.use("/api/v1/activity", activityRouter);
