@@ -11,3 +11,21 @@ export const MenuIcon = ({ size = 18 }: Props) => <svg {...base(size)}><path d="
 export const HomeIcon = ({ size = 18 }: Props) => <svg {...base(size)}><path d="M3.5 9 10 3.5 16.5 9v7h-4.5v-4.5h-4V16H3.5z" /></svg>;
 export const ListIcon = ({ size = 18 }: Props) => <svg {...base(size)}><path d="M7 5.5h9M7 10h9M7 14.5h9" /><circle cx="3.8" cy="5.5" r=".6" fill="currentColor" /><circle cx="3.8" cy="10" r=".6" fill="currentColor" /><circle cx="3.8" cy="14.5" r=".6" fill="currentColor" /></svg>;
 export const UsersIcon = ({ size = 18 }: Props) => <svg {...base(size)}><circle cx="7.5" cy="7" r="2.8" /><path d="M2.5 16c.5-2.6 2.5-4 5-4s4.5 1.4 5 4" /><path d="M13 4.5a2.6 2.6 0 0 1 0 5M14.5 12.3c1.5.5 2.6 1.7 3 3.7" /></svg>;
+
+export const TicketIcon = ({ size = 18 }: Props) => <svg {...base(size)}><path d="M3.5 7a1.5 1.5 0 0 1 1.5-1.5h10A1.5 1.5 0 0 1 16.5 7v1.2a1.8 1.8 0 0 0 0 3.6V13a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 13v-1.2a1.8 1.8 0 0 0 0-3.6z" /><path d="M12 6v8" strokeDasharray="1.5 2" /></svg>;
+export const CheckCircleIcon = ({ size = 18 }: Props) => <svg {...base(size)}><circle cx="10" cy="10" r="6.5" /><path d="m7.2 10.2 2 2 3.6-4" /></svg>;
+export const TemplateIcon = ({ size = 18 }: Props) => <svg {...base(size)}><rect x="3.5" y="3.5" width="13" height="13" rx="2" /><path d="M3.5 8h13M8 8v8.5" /></svg>;
+export const ChartIcon = ({ size = 18 }: Props) => <svg {...base(size)}><path d="M4 16V9M10 16V4M16 16v-5" /></svg>;
+export const PulseIcon = ({ size = 18 }: Props) => <svg {...base(size)}><path d="M2.5 10h3l2-5 4 10 2-5h4" /></svg>;
+export const UserIcon = ({ size = 18 }: Props) => <svg {...base(size)}><circle cx="10" cy="7" r="3" /><path d="M4 16.5c.6-3 3-4.5 6-4.5s5.4 1.5 6 4.5" /></svg>;
+export const ShieldIcon = ({ size = 18 }: Props) => <svg {...base(size)}><path d="M10 3 4.5 5.200v4.300c0 3.3 2.3 5.8 5.5 7 3.2-1.2 5.5-3.7 5.5-7V5.200z" /><path d="m7.6 10 1.8 1.8 3-3.3" /></svg>;
+export const DatabaseIcon = ({ size = 18 }: Props) => <svg {...base(size)}><ellipse cx="10" cy="5.5" rx="5.5" ry="2.2" /><path d="M4.5 5.500v9c0 1.2 2.5 2.2 5.5 2.200s5.5-1 5.5-2.200v-9M4.5 10c0 1.2 2.5 2.2 5.5 2.200s5.5-1 5.5-2.2" /></svg>;
+export const SunIcon = ({ size = 16 }: Props) => <svg {...base(size)}><circle cx="10" cy="10" r="3.2" /><path d="M10 2.800v1.700M10 15.500v1.700M2.8 10h1.700M15.5 10h1.700M4.9 4.900l1.2 1.200M13.9 13.900l1.2 1.200M4.9 15.100l1.2-1.200M13.9 6.100l1.2-1.2" /></svg>;
+export const MoonIcon = ({ size = 16 }: Props) => <svg {...base(size)}><path d="M16.5 11.500A6.5 6.5 0 0 1 8.5 3.500a6.5 6.5 0 1 0 8 8z" /></svg>;
+export const MonitorIcon = ({ size = 16 }: Props) => <svg {...base(size)}><rect x="3" y="4" width="14" height="9.5" rx="1.5" /><path d="M7.5 16.500h5M10 13.500v3" /></svg>;
+export const LogoutIcon = ({ size = 16 }: Props) => <svg {...base(size)}><path d="M8 4H5.500A1.5 1.5 0 0 0 4 5.500v9A1.5 1.5 0 0 0 5.5 16H8M12.5 6.5 16 10l-3.5 3.500M16 10H8" /></svg>;
+export const KeyboardIcon = ({ size = 16 }: Props) => <svg {...base(size)}><rect x="2.5" y="5" width="15" height="10" rx="1.5" /><path d="M5.5 8h.01M8.5 8h.01M11.5 8h.01M14.5 8h.01M6 12h8" /></svg>;
+export const BoardIcon = ({ size = 16 }: Props) => <svg {...base(size)}><rect x="3" y="4" width="4" height="12" rx="1" /><rect x="8.5" y="4" width="4" height="8" rx="1" /><rect x="14" y="4" width="3" height="5" rx="1" /></svg>;
+export const CalendarIcon = ({ size = 14 }: Props) => <svg {...base(size)}><rect x="3.5" y="4.5" width="13" height="12" rx="1.5" /><path d="M3.5 8.500h13M7 3v3M13 3v3" /></svg>;
+export const CloseIcon = ({ size = 16 }: Props) => <svg {...base(size)}><path d="m5 5 10 10M15 5 5 15" /></svg>;
+export const FlameIcon = ({ size = 16 }: Props) => <svg {...base(size)}><path d="M10 2.500c.8 3.2 5 5 5 9a5 5 0 0 1-10 0c0-2 1.1-3.5 2.5-4.9.2 1.4.8 2.2 1.7 2.400C9 8 9.3 5 10 2.500z" /></svg>;

@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { Button, IconButton } from "./controls";
+import { CloseIcon } from "./icons";
 
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
@@ -30,14 +32,14 @@ export function Modal({ title, eyebrow, onClose, wide, children }: { title: stri
   }, [onClose]);
 
   return (
-    <div className="overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className={`modal${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-label={title} ref={dialog}>
-        <div className="modal-head">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[var(--scrim)] p-4 backdrop-blur-[2px]" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div className={`max-h-[92vh] w-full animate-[pop_0.18s_ease-out] overflow-auto rounded-2xl border border-line-strong bg-card p-6 shadow-lg ${wide ? "max-w-3xl" : "max-w-lg"}`} role="dialog" aria-modal="true" aria-label={title} ref={dialog}>
+        <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            {eyebrow && <span className="eyebrow">{eyebrow}</span>}
-            <h2>{title}</h2>
+            {eyebrow && <span className="text-[11px] font-semibold uppercase tracking-widest text-muted">{eyebrow}</span>}
+            <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
           </div>
-          <button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose}>×</button>
+          <IconButton label="Close dialog" onClick={onClose} className="-mr-2 -mt-1"><CloseIcon /></IconButton>
         </div>
         {children}
       </div>
@@ -48,10 +50,10 @@ export function Modal({ title, eyebrow, onClose, wide, children }: { title: stri
 export function ConfirmDialog({ title, message, confirmLabel = "Confirm", onConfirm, onClose }: { title: string; message: string; confirmLabel?: string; onConfirm: () => void | Promise<void>; onClose: () => void }) {
   return (
     <Modal title={title} onClose={onClose}>
-      <p className="muted">{message}</p>
-      <div className="modal-actions">
-        <button type="button" className="ghost" onClick={onClose}>Cancel</button>
-        <button type="button" className="danger" onClick={async () => { await onConfirm(); onClose(); }}>{confirmLabel}</button>
+      <p className="text-muted">{message}</p>
+      <div className="mt-6 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="danger" onClick={async () => { await onConfirm(); onClose(); }}>{confirmLabel}</Button>
       </div>
     </Modal>
   );

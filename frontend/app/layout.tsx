@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
+import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "../components/auth-provider";
 import { PwaRegister } from "../components/pwa";
 import { RealtimeProvider } from "../components/realtime";
@@ -9,7 +9,6 @@ import "./globals.css";
 
 // Fonts are fetched at build time and served from our own origin: no third-party requests when the app runs.
 const sans = Instrument_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const serif = Newsreader({ subsets: ["latin"], variable: "--font-serif", display: "swap" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://autodao.tech";
@@ -29,7 +28,7 @@ export const viewport: Viewport = { themeColor: [{ media: "(prefers-color-scheme
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeBootScript }} /></head>
       <body>
         <PwaRegister />

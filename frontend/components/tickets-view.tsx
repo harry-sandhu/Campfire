@@ -8,7 +8,9 @@ import { useDebounce } from "../lib/use-debounce";
 import { useLoad } from "../lib/use-load";
 import { PRIORITIES, STATUSES, type Group, type Member, type Milestone, type SavedFilter, type Ticket, type TicketPage } from "../lib/types";
 import { useAuth } from "./auth-provider";
-import { AvatarStack, Empty, ErrorNote, PriorityPill, Skeleton, TicketRow } from "./ui";
+import { Button, fieldClass, panelClass } from "./controls";
+import { BoardIcon, ListIcon, PlusIcon, SearchIcon } from "./icons";
+import { AvatarStack, Empty, ErrorNote, PriorityPill, Skeleton, statusColor, TicketRow } from "./ui";
 import { ImportModal } from "./import-modal";
 import { ConfirmDialog, Modal } from "./modal";
 import { useLiveEvents } from "./realtime";
@@ -137,60 +139,67 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const allSelected = !!data?.tickets.length && selected.length === data.tickets.length;
 
+  const selectCls = `${fieldClass.replace("w-full", "")} h-9 w-auto min-w-0 py-0 pr-8`;
+  const checkCls = "size-4 shrink-0 cursor-pointer rounded accent-[var(--accent)]";
+
   return (
     <>
-      <PageHeader title={mine ? "My work" : "Tickets"} crumbs={mine ? undefined : undefined} eyebrow={mine ? "Assigned to you" : undefined}>
-        <button type="button" className="ghost" onClick={() => void exportCsv()}>Export CSV</button>
-        {can("tickets.create") && <button type="button" className="ghost" onClick={() => setShowImport(true)}>Import CSV</button>}
-        {can("tickets.create") && <button onClick={() => setShowCreate(true)}>New ticket</button>}
+      <PageHeader title={mine ? "My work" : "Tickets"} eyebrow={mine ? "Assigned to you" : undefined}>
+        <Button variant="ghost" onClick={() => void exportCsv()}>Export CSV</Button>
+        {can("tickets.create") && <Button variant="ghost" onClick={() => setShowImport(true)}>Import CSV</Button>}
+        {can("tickets.create") && <Button onClick={() => setShowCreate(true)}><PlusIcon size={16} />New ticket</Button>}
       </PageHeader>
-      <section className="panel">
-        <div className="filters">
-          <input className="search" type="search" aria-label="Search tickets" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets…" />
-          <select aria-label="Status" value={status} onChange={(e) => setParams({ status: e.target.value })}><option value="">All statuses</option>{STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
-          <select aria-label="Priority" value={priority} onChange={(e) => setParams({ priority: e.target.value })}><option value="">All priorities</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>
-          <select aria-label="Group" value={groupId} onChange={(e) => setParams({ group: e.target.value, milestone: "" })}><option value="">All groups</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
-          {milestones.length > 0 && <select aria-label="Milestone" value={milestoneId} onChange={(e) => setParams({ milestone: e.target.value })}><option value="">Any milestone</option>{milestones.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}
-          {saved.length > 0 && <select aria-label="Saved views" value={activeSaved?.id ?? ""} onChange={(e) => { const f = saved.find((s) => s.id === e.target.value); if (f) { setSearch(f.query.q ?? ""); router.replace(`?${new URLSearchParams(f.query).toString()}`); } }}><option value="">Saved views</option>{saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
-          {hasFilters && !activeSaved && <button type="button" className="link-button" onClick={() => setSaving(true)}>Save view</button>}
-          {activeSaved && <button type="button" className="link-button danger-text" onClick={async () => { await api(`/saved-filters/${activeSaved.id}`, { method: "DELETE" }); setSaved((s) => s.filter((x) => x.id !== activeSaved.id)); toast("View deleted"); }}>Delete view</button>}
-          <div className="segmented" role="group" aria-label="View">
-            <button type="button" className={view === "list" ? "on" : ""} aria-pressed={view === "list"} onClick={() => setParams({ view: "" })}>List</button>
-            <button type="button" className={view === "board" ? "on" : ""} aria-pressed={view === "board"} onClick={() => setParams({ view: "board" })}>Board</button>
+      <section className={`${panelClass} overflow-hidden`}>
+        <div className="flex flex-wrap items-center gap-2 border-b border-line p-3 md:p-4">
+          <div className="relative min-w-[200px] flex-1 basis-60">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"><SearchIcon /></span>
+            <input className={`${fieldClass} h-9 pl-9`} type="search" aria-label="Search tickets" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets…" />
+          </div>
+          <select className={selectCls} aria-label="Status" value={status} onChange={(e) => setParams({ status: e.target.value })}><option value="">All statuses</option>{STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
+          <select className={selectCls} aria-label="Priority" value={priority} onChange={(e) => setParams({ priority: e.target.value })}><option value="">All priorities</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>
+          <select className={selectCls} aria-label="Group" value={groupId} onChange={(e) => setParams({ group: e.target.value, milestone: "" })}><option value="">All groups</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
+          {milestones.length > 0 && <select className={selectCls} aria-label="Milestone" value={milestoneId} onChange={(e) => setParams({ milestone: e.target.value })}><option value="">Any milestone</option>{milestones.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}
+          {saved.length > 0 && <select className={selectCls} aria-label="Saved views" value={activeSaved?.id ?? ""} onChange={(e) => { const f = saved.find((s) => s.id === e.target.value); if (f) { setSearch(f.query.q ?? ""); router.replace(`?${new URLSearchParams(f.query).toString()}`); } }}><option value="">Saved views</option>{saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+          {hasFilters && !activeSaved && <Button variant="subtle" size="sm" onClick={() => setSaving(true)}>Save view</Button>}
+          {activeSaved && <Button variant="ghost" size="sm" className="text-danger" onClick={async () => { await api(`/saved-filters/${activeSaved.id}`, { method: "DELETE" }); setSaved((s) => s.filter((x) => x.id !== activeSaved.id)); toast("View deleted"); }}>Delete view</Button>}
+          <div className="ml-auto inline-flex rounded-lg border border-line-strong bg-soft p-0.5" role="group" aria-label="View">
+            {([["list", "List", <ListIcon key="l" size={16} />], ["board", "Board", <BoardIcon key="b" />]] as const).map(([key, text, icon]) => (
+              <button key={key} type="button" className={`inline-flex h-8 items-center gap-1.5 rounded-md border-0 px-3 text-[13px] font-semibold transition ${view === key ? "bg-card text-ink shadow-sm" : "bg-transparent text-muted hover:text-ink"}`} aria-pressed={view === key} onClick={() => setParams({ view: key === "board" ? "board" : "" })}>{icon}{text}</button>
+            ))}
           </div>
         </div>
 
         {selected.length > 0 && (
-          <div className="bulk-bar" role="toolbar" aria-label="Bulk actions">
-            <strong>{selected.length} selected</strong>
-            {can("tickets.change_status") && <select aria-label="Set status" value="" onChange={(e) => e.target.value && void bulk("status", e.target.value, "Status updated")}><option value="">Set status…</option>{STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>}
-            {can("tickets.change_priority") && <select aria-label="Set priority" value="" onChange={(e) => e.target.value && void bulk("priority", e.target.value, "Priority updated")}><option value="">Set priority…</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>}
-            {bulkPeople.length > 0 && <select aria-label="Assign to" value="" onChange={(e) => e.target.value && void bulk("assign", e.target.value, "Assigned")}><option value="">Assign to…</option>{bulkPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
-            {can("tickets.edit") && <select aria-label="Move to group" value="" onChange={(e) => e.target.value && void bulk("move", e.target.value === "none" ? null : e.target.value, "Moved")}><option value="">Move to group…</option><option value="none">No group</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>}
-            {can("tickets.delete") && <button type="button" className="ghost danger-text" onClick={() => setConfirmDelete(true)}>Delete</button>}
-            <button type="button" className="ghost" onClick={() => setSelected([])}>Clear</button>
+          <div className="sticky top-14 z-10 flex flex-wrap items-center gap-2 border-b border-line bg-accent-soft px-4 py-2.5" role="toolbar" aria-label="Bulk actions">
+            <strong className="mr-1 text-sm">{selected.length} selected</strong>
+            {can("tickets.change_status") && <select className={`${selectCls} h-8 text-[13px]`} aria-label="Set status" value="" onChange={(e) => e.target.value && void bulk("status", e.target.value, "Status updated")}><option value="">Set status…</option>{STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>}
+            {can("tickets.change_priority") && <select className={`${selectCls} h-8 text-[13px]`} aria-label="Set priority" value="" onChange={(e) => e.target.value && void bulk("priority", e.target.value, "Priority updated")}><option value="">Set priority…</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>}
+            {bulkPeople.length > 0 && <select className={`${selectCls} h-8 text-[13px]`} aria-label="Assign to" value="" onChange={(e) => e.target.value && void bulk("assign", e.target.value, "Assigned")}><option value="">Assign to…</option>{bulkPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
+            {can("tickets.edit") && <select className={`${selectCls} h-8 text-[13px]`} aria-label="Move to group" value="" onChange={(e) => e.target.value && void bulk("move", e.target.value === "none" ? null : e.target.value, "Moved")}><option value="">Move to group…</option><option value="none">No group</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>}
+            {can("tickets.delete") && <Button variant="ghost" size="sm" className="text-danger" onClick={() => setConfirmDelete(true)}>Delete</Button>}
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelected([])}>Clear</Button>
           </div>
         )}
 
-        <ErrorNote message={error} />
-        {loading && !data ? <Skeleton rows={8} /> : !data?.tickets.length ? (
-          <Empty title={hasFilters ? "No tickets match these filters" : mine ? "Nothing assigned to you" : "No tickets yet"} hint={hasFilters ? "Clear a filter or try different words." : "New tickets show up here as soon as they are created."} action={hasFilters ? <button type="button" className="secondary" onClick={() => { setSearch(""); router.replace("?"); }}>Clear filters</button> : can("tickets.create") ? <button onClick={() => setShowCreate(true)}>New ticket</button> : undefined} />
+        <div className="px-4"><ErrorNote message={error} /></div>
+        {loading && !data ? <Skeleton rows={8} className="rounded-none border-0" /> : !data?.tickets.length ? (
+          <Empty title={hasFilters ? "No tickets match these filters" : mine ? "Nothing assigned to you" : "No tickets yet"} hint={hasFilters ? "Clear a filter or try different words." : "New tickets show up here as soon as they are created."} action={hasFilters ? <Button variant="secondary" onClick={() => { setSearch(""); router.replace("?"); }}>Clear filters</Button> : can("tickets.create") ? <Button onClick={() => setShowCreate(true)}>New ticket</Button> : undefined} />
         ) : view === "board" ? (
           <>
-            <div className="board">
+            <div className="grid auto-cols-[minmax(250px,1fr)] grid-flow-col gap-3 overflow-x-auto bg-soft/50 p-4">
               {STATUSES.map((s) => {
                 const items = data.tickets.filter((t) => t.status === s);
                 return (
-                  <div className={`column${dropTarget === s ? " drop" : ""}`} key={s}
+                  <div className={`grid min-h-32 content-start gap-2.5 rounded-xl border p-2.5 transition-colors ${dropTarget === s ? "border-accent bg-accent-soft" : "border-line bg-soft"}`} key={s}
                     onDragOver={(e) => { if (can("tickets.change_status")) { e.preventDefault(); setDropTarget(s); } }}
                     onDragLeave={() => setDropTarget("")}
                     onDrop={(e) => { setDropTarget(""); const id = e.dataTransfer.getData("text/plain"); const t = data.tickets.find((x) => x.id === id); if (t) void moveCard(t, s); }}>
-                    <h3>{label(s)} <span className="count">{items.length}</span></h3>
+                    <h3 className="flex items-center gap-2 px-1 text-[13px] font-semibold"><i className="size-2.5 rounded-full" style={{ background: statusColor(s) }} aria-hidden="true" />{label(s)}<span className="ml-auto rounded-full bg-card px-2 text-xs font-semibold tabular-nums text-muted">{items.length}</span></h3>
                     {items.map((t) => (
-                      <Link className={`card${t.priority === "URGENT" || t.priority === "HIGH" ? ` edge-${t.priority.toLowerCase()}` : ""}`} key={t.id} href={`/tickets/${t.id}`} draggable={can("tickets.change_status")} onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)}>
-                        <span className="ticket-id">{t.ticketNumber}</span>
-                        <strong>{t.title}</strong>
-                        <span className="card-foot"><PriorityPill priority={t.priority} /><AvatarStack people={assigneesOf(t)} /></span>
+                      <Link className={`grid gap-2 rounded-lg border border-line bg-card p-3 shadow-sm transition hover:-translate-y-px hover:border-line-strong hover:shadow-md ${t.priority === "URGENT" ? "shadow-[inset_3px_0_0_var(--p-urgent)]" : t.priority === "HIGH" ? "shadow-[inset_3px_0_0_var(--p-high)]" : ""} ${can("tickets.change_status") ? "cursor-grab active:cursor-grabbing" : ""}`} key={t.id} href={`/tickets/${t.id}`} draggable={can("tickets.change_status")} onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)}>
+                        <span className="font-mono text-xs text-muted">{t.ticketNumber}</span>
+                        <strong className="text-sm font-semibold leading-snug">{t.title}</strong>
+                        <span className="flex items-center justify-between gap-2"><PriorityPill priority={t.priority} /><AvatarStack people={assigneesOf(t)} /></span>
                       </Link>
                     ))}
                     {can("tickets.create") && <QuickAdd onAdd={(title) => quickAdd(s, title)} />}
@@ -198,26 +207,26 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
                 );
               })}
             </div>
-            <p className="note">{can("tickets.change_status") ? "Drag cards between columns to change status. " : ""}{data.total > data.tickets.length ? `Showing the ${data.tickets.length} most recently updated of ${data.total} tickets.` : ""}</p>
+            <p className="border-t border-line px-5 py-3 text-[13px] text-muted">{can("tickets.change_status") ? "Drag cards between columns to change status. " : ""}{data.total > data.tickets.length ? `Showing the ${data.tickets.length} lowest-numbered of ${data.total} tickets.` : ""}</p>
           </>
         ) : (
           <>
-            <div className="list-head">
-              <input type="checkbox" aria-label="Select all on this page" checked={allSelected} onChange={() => setSelected(allSelected ? [] : data.tickets.map((t) => t.id))} />
-              <div className="ticket-row" aria-hidden="true"><span>ID</span><span>Title</span><span /><span>Status</span><span style={{ textAlign: "right" }}>Due</span><span /><span>People</span></div>
+            <div className="sticky top-14 z-[5] hidden items-center gap-3 border-b border-line bg-soft pl-4 md:flex">
+              <input className={checkCls} type="checkbox" aria-label="Select all on this page" checked={allSelected} onChange={() => setSelected(allSelected ? [] : data.tickets.map((t) => t.id))} />
+              <div className="grid flex-1 grid-cols-[64px_minmax(0,1fr)_24px_128px_64px_48px_80px] items-center gap-3 py-2 pr-5 text-[11px] font-semibold uppercase tracking-widest text-muted" aria-hidden="true"><span>ID</span><span>Title</span><span /><span>Status</span><span className="text-right">Due</span><span /><span>People</span></div>
             </div>
-            <div className="ticket-list" aria-busy={loading}>
+            <div aria-busy={loading}>
               {data.tickets.map((t) => (
-                <div className="ticket-line" key={t.id}>
-                  <input type="checkbox" aria-label={`Select ${t.ticketNumber}`} checked={selected.includes(t.id)} onChange={() => toggle(t.id)} />
-                  <TicketRow ticket={t} />
+                <div className={`flex items-center border-b border-line pl-4 last:border-0 ${selected.includes(t.id) ? "bg-accent-soft/60" : ""}`} key={t.id}>
+                  <input className={`${checkCls} mr-1`} type="checkbox" aria-label={`Select ${t.ticketNumber}`} checked={selected.includes(t.id)} onChange={() => toggle(t.id)} />
+                  <div className="min-w-0 flex-1"><TicketRow ticket={t} /></div>
                 </div>
               ))}
             </div>
-            <div className="pager">
-              <button type="button" className="ghost" disabled={page <= 1} onClick={() => setParams({ page: String(page - 1) }, true)}>← Previous</button>
-              <span className="muted">Page {data.page} of {Math.max(data.pages, 1)} · {data.total} tickets</span>
-              <button type="button" className="ghost" disabled={page >= data.pages} onClick={() => setParams({ page: String(page + 1) }, true)}>Next →</button>
+            <div className="flex items-center justify-between border-t border-line px-4 py-3">
+              <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setParams({ page: String(page - 1) }, true)}>← Previous</Button>
+              <span className="text-[13px] text-muted">Page {data.page} of {Math.max(data.pages, 1)} · {data.total} tickets</span>
+              <Button variant="ghost" size="sm" disabled={page >= data.pages} onClick={() => setParams({ page: String(page + 1) }, true)}>Next →</Button>
             </div>
           </>
         )}
@@ -227,9 +236,9 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
       {confirmDelete && <ConfirmDialog title="Delete tickets" message={`Delete ${selected.length} selected tickets? You can undo right after, and a SuperAdmin can restore them later.`} confirmLabel="Delete" onClose={() => setConfirmDelete(false)} onConfirm={() => bulk("delete", null, "Deleted")} />}
       {saving && (
         <Modal title="Save this view" onClose={() => setSaving(false)}>
-          <form className="stack" onSubmit={async (e) => { e.preventDefault(); const name = String(new FormData(e.currentTarget).get("name")).trim(); if (!name) return; try { const f = await api<SavedFilter>("/saved-filters", { method: "POST", body: json({ name, query: currentQuery }) }); setSaved((s) => [...s, f]); setSaving(false); toast("View saved"); } catch (err) { toast((err as Error).message, "error"); } }}>
-            <label>Name<input name="name" required maxLength={60} placeholder="Urgent in Ops" autoFocus /></label>
-            <div className="modal-actions"><button type="button" className="ghost" onClick={() => setSaving(false)}>Cancel</button><button>Save view</button></div>
+          <form className="grid gap-5" onSubmit={async (e) => { e.preventDefault(); const name = String(new FormData(e.currentTarget).get("name")).trim(); if (!name) return; try { const f = await api<SavedFilter>("/saved-filters", { method: "POST", body: json({ name, query: currentQuery }) }); setSaved((s) => [...s, f]); setSaving(false); toast("View saved"); } catch (err) { toast((err as Error).message, "error"); } }}>
+            <label className="grid gap-1.5 text-sm font-semibold">Name<input className={fieldClass} name="name" required maxLength={60} placeholder="Urgent in Ops" autoFocus /></label>
+            <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setSaving(false)}>Cancel</Button><Button type="submit">Save view</Button></div>
           </form>
         </Modal>
       )}
@@ -240,8 +249,8 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
 function QuickAdd({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
   const [title, setTitle] = useState("");
   return (
-    <form className="quick-add" onSubmit={async (e) => { e.preventDefault(); if (!title.trim()) return; const t = title; setTitle(""); await onAdd(t.trim()); }}>
-      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a ticket…" aria-label="Quick add ticket" maxLength={200} />
+    <form onSubmit={async (e) => { e.preventDefault(); if (!title.trim()) return; const t = title; setTitle(""); await onAdd(t.trim()); }}>
+      <input className={`${fieldClass} border-dashed bg-transparent py-1.5 text-[13px]`} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="+ Add a ticket…" aria-label="Quick add ticket" maxLength={200} />
     </form>
   );
 }

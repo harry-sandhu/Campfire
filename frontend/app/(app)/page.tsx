@@ -11,12 +11,18 @@ import type { Ticket } from "../../lib/types";
 
 type Dashboard = { counts: { open: number; inProgress: number; inReview: number; blocked: number; completed: number; overdue: number }; overdue: Ticket[]; dueSoon: Ticket[]; mine: Ticket[]; recent: Ticket[] };
 
-function Section({ title, hint, href, linkLabel, tickets }: { title: string; hint?: string; href?: string; linkLabel?: string; tickets: Ticket[] }) {
+function Section({ title, hint, href, linkLabel, tickets, tone }: { title: string; hint?: string; href?: string; linkLabel?: string; tickets: Ticket[]; tone?: string }) {
   if (!tickets.length) return null;
   return (
     <section>
-      <div className="section-label"><div><h2>{title}</h2>{hint && <p className="muted" style={{ margin: 0, fontSize: 13 }}>{hint}</p>}</div>{href && <Link href={href} className="link-button">{linkLabel}</Link>}</div>
-      <div className="panel">{tickets.map((t) => <TicketRow key={t.id} ticket={t} />)}</div>
+      <div className="mb-2.5 flex items-end justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-base font-semibold">{tone && <i className="size-2.5 rounded-full" style={{ background: tone }} aria-hidden="true" />}{title}<span className="rounded-full bg-soft px-2 text-xs font-semibold text-muted">{tickets.length}</span></h2>
+          {hint && <p className="text-[13px] text-muted">{hint}</p>}
+        </div>
+        {href && <Link href={href} className="text-[13px] font-semibold text-accent hover:underline">{linkLabel} →</Link>}
+      </div>
+      <div className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">{tickets.map((t) => <TicketRow key={t.id} ticket={t} />)}</div>
     </section>
   );
 }
@@ -40,22 +46,22 @@ export default function OverviewPage() {
         : <>
           <ErrorNote message={error} />
           {data && <>
-            <div className="stats">
-              <Stat label="Open" value={data.counts.open} />
-              <Stat label="In progress" value={data.counts.inProgress} />
-              <Stat label="In review" value={data.counts.inReview} />
-              <Stat label="Blocked" value={data.counts.blocked} alert />
-              <Stat label="Overdue" value={data.counts.overdue} alert />
-              <Stat label="Completed" value={data.counts.completed} />
+            <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+              <Stat label="Open" value={data.counts.open} href="/tickets?status=OPEN" />
+              <Stat label="In progress" value={data.counts.inProgress} tone="progress" href="/tickets?status=IN_PROGRESS" />
+              <Stat label="In review" value={data.counts.inReview} tone="review" href="/tickets?status=IN_REVIEW" />
+              <Stat label="Blocked" value={data.counts.blocked} tone="blocked" alert href="/tickets?status=BLOCKED" />
+              <Stat label="Overdue" value={data.counts.overdue} tone="overdue" alert />
+              <Stat label="Completed" value={data.counts.completed} tone="done" href="/tickets?status=COMPLETED" />
             </div>
             {nothing ? (
-              <div className="panel"><Empty title="Nothing on the fire yet" hint="Create the first ticket, or ask to be added to a group." action={can("tickets.create") ? <Link href="/tickets" className="link-button">Go to tickets →</Link> : undefined} /></div>
-            ) : <>
-              <Section title="Overdue" hint="Past their due date and still open." tickets={data.overdue} href="/tickets" linkLabel="All tickets" />
-              <Section title="Due this week" tickets={data.dueSoon} />
-              <Section title="Assigned to you" tickets={assigned} href="/my-work" linkLabel="View all" />
+              <div className="rounded-lg border border-line bg-card shadow-sm"><Empty title="Nothing on the fire yet" hint="Create the first ticket, or ask to be added to a group." action={can("tickets.create") ? <Link href="/tickets" className="link-button">Go to tickets →</Link> : undefined} /></div>
+            ) : <div className="grid gap-8">
+              <Section title="Overdue" hint="Past their due date and still open." tickets={data.overdue} tone="var(--s-blocked)" href="/tickets" linkLabel="All tickets" />
+              <Section title="Due this week" tone="var(--s-progress)" tickets={data.dueSoon} />
+              <Section title="Assigned to you" tickets={assigned} tone="var(--s-review)" href="/my-work" linkLabel="View all" />
               <Section title="Recently updated" hint="Across the groups you belong to." tickets={data.recent} href="/tickets" linkLabel="All tickets" />
-            </>}
+            </div>}
           </>}
         </>}
     </>
