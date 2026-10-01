@@ -8,6 +8,7 @@ import { forbidden, notFound, unprocessable } from "../utils/errors.js";
 import { ok } from "../utils/http.js";
 import { escapeRegex, objectId, unique } from "../utils/validation.js";
 import { nextTicketNumber, notify, recordActivity, validatePlacement } from "../services/ticket-service.js";
+import { audit } from "../services/audit.js";
 
 const router = Router();
 router.use(authenticate);
@@ -182,6 +183,7 @@ router.delete("/:id", requirePermission("tickets.delete"), handle(async (request
   ticket.set({ deletedAt: new Date(), updatedById: user.id });
   await ticket.save();
   await recordActivity(ticket._id, user.id, "DELETED");
+  await audit(request, user.id, { action: "TICKET_DELETED", targetType: "Ticket", targetId: ticket._id, summary: `Deleted ${ticket.ticketNumber}` });
   ok(response, null);
 }));
 

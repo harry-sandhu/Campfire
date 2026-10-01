@@ -1,15 +1,17 @@
 import { Router } from "express";
 import { z } from "zod";
 import { PERMISSIONS, isPermission } from "../constants/permissions.js";
+import { ROLE_TEMPLATES } from "../constants/role-templates.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { Group, RefreshToken, User } from "../models/index.js";
-import { canViewGroup, isSuperAdmin } from "../utils/access.js";
+import { canViewGroup, hasPermission, isSuperAdmin } from "../utils/access.js";
 import { handle } from "../utils/async-handler.js";
 import { HttpError, badRequest, forbidden, notFound, unprocessable } from "../utils/errors.js";
 import { ok } from "../utils/http.js";
 import { hashPassword } from "../utils/security.js";
 import { objectId, unique } from "../utils/validation.js";
 import type { AuthUser } from "../types/auth.js";
+import { audit } from "../services/audit.js";
 
 const router = Router();
 router.use(authenticate);
@@ -18,6 +20,7 @@ const password = z.string().min(8).max(128);
 const permissionList = z.array(z.string()).max(PERMISSIONS.length);
 const defaultUserPermissions = ["tickets.view", "tickets.create", "tickets.assign", "comments.view", "comments.create", "ticket_links.view"];
 
+const hasAnyPermission = (user: AuthUser, permissions: string[]) => permissions.some((p) => hasPermission(user, p));
 const output = (u: any) => ({ id: String(u._id), name: u.name, email: u.email, role: u.role, permissions: u.permissions, isActive: u.isActive, lastLoginAt: u.lastLoginAt, createdAt: u.createdAt });
 
 function assertValidPermissions(permissions: string[]) {
@@ -51,6 +54,12 @@ router.get("/assignees", requirePermission("tickets.assign"), handle(async (requ
   ok(response, { users: users.map((u) => ({ id: String(u._id), name: u.name, email: u.email })) });
 }));
 
+router.get("/role-templates", handle(async (request, response) => {
+  const user = request.user!;
+  if (!hasAnyPermission(user, ["users.edit", "users.create"])) throw forbidden("PERMISSION_DENIED", "Permission required: users.edit");
+  ok(response, { templates: ROLE_TEMPLATES });
+}));
+
 router.get("/", requirePermission("users.view"), handle(async (_request, response) => {
   const users = await User.find({ deletedAt: null }).sort({ name: 1 }).lean();
   ok(response, { users: users.map(output), permissions: PERMISSIONS });
@@ -63,12 +72,14 @@ router.post("/", requirePermission("users.create"), handle(async (request, respo
   const email = input.email.toLowerCase();
   if (await User.exists({ email })) throw new HttpError(409, "EMAIL_IN_USE", "Email is already in use");
   const user = await User.create({ name: input.name, email, passwordHash: await hashPassword(input.temporaryPassword), permissions: unique([...defaultUserPermissions, ...input.permissions]), mustChangePassword: true });
+  await audit(request, request.user!.id, { action: "USER_CREATED", targetType: "User", targetId: user._id, summary: `Created user ${user.email}` });
   ok(response, output(user), 201);
 }));
 
 router.patch("/:id", requirePermission("users.edit"), handle(async (request, response) => {
   const input = z.object({ name: z.string().trim().min(1).max(120).optional(), permissions: permissionList.optional() }).parse(request.body);
   const user = await loadManagedUser(request.params.id);
+  const permissionsBefore = [...user.permissions];
   if (input.permissions) {
     assertValidPermissions(input.permissions);
     if (!isSuperAdmin(request.user!) && String(user._id) === request.user!.id) throw forbidden("PERMISSION_DENIED", "You cannot change your own permissions");
@@ -77,6 +88,11 @@ router.patch("/:id", requirePermission("users.edit"), handle(async (request, res
   }
   if (input.name) user.name = input.name;
   await user.save();
+  if (input.permissions) {
+    const added = user.permissions.filter((p) => !permissionsBefore.includes(p));
+    const removed = permissionsBefore.filter((p) => !user.permissions.includes(p));
+    if (added.length || removed.length) await audit(request, request.user!.id, { action: "PERMISSIONS_CHANGED", targetType: "User", targetId: user._id, summary: `Changed permissions of ${user.email}`, metadata: { added, removed } });
+  }
   ok(response, output(user));
 }));
 
@@ -87,6 +103,7 @@ router.patch("/:id/status", requirePermission("users.disable"), handle(async (re
   user.isActive = isActive;
   await user.save();
   if (!isActive) await RefreshToken.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date() });
+  await audit(request, request.user!.id, { action: isActive ? "USER_ENABLED" : "USER_DISABLED", targetType: "User", targetId: user._id, summary: `${isActive ? "Enabled" : "Disabled"} ${user.email}` });
   ok(response, output(user));
 }));
 
@@ -106,6 +123,7 @@ router.delete("/:id", requirePermission("users.edit"), handle(async (request, re
     RefreshToken.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date() }),
     Group.updateMany({ memberIds: user._id }, { $pull: { memberIds: user._id, leaderIds: user._id, creatorIds: user._id } }),
   ]);
+  await audit(request, request.user!.id, { action: "USER_DELETED", targetType: "User", targetId: user._id, summary: `Deleted ${user.email}` });
   ok(response, null);
 }));
 
@@ -116,6 +134,7 @@ router.post("/:id/reset-password", requirePermission("users.edit"), handle(async
   user.mustChangePassword = true;
   await user.save();
   await RefreshToken.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date() });
+  await audit(request, request.user!.id, { action: "PASSWORD_RESET", targetType: "User", targetId: user._id, summary: `Reset password for ${user.email}` });
   ok(response, null);
 }));
 

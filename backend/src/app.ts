@@ -16,6 +16,9 @@ import { activityRouter } from "./routes/activity.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { docsRouter } from "./routes/docs.js";
 import { groupsRouter } from "./routes/groups.js";
+import { auditRouter } from "./routes/audit.js";
+import { adminDataRouter } from "./routes/admin-data.js";
+import { apiTokensRouter } from "./routes/api-tokens.js";
 import { requireAllowedOrigin } from "./middleware/csrf.js";
 
 export function createApp() {
@@ -34,6 +37,9 @@ export function createApp() {
   app.use("/api/v1/bootstrap", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5 }), bootstrapRouter);
   app.use("/api/v1/users", usersRouter);
   app.use("/api/v1/groups", groupsRouter);
+  app.use("/api/v1/api-tokens", apiTokensRouter);
+  app.use("/api/v1/audit", auditRouter);
+  app.use("/api/v1/admin/data", adminDataRouter);
   app.use("/api/v1/tickets", ticketsRouter);
   app.use("/api/v1/notifications", notificationsRouter);
   app.use("/api/v1/activity", activityRouter);

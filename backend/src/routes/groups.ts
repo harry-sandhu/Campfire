@@ -7,6 +7,7 @@ import { handle } from "../utils/async-handler.js";
 import { HttpError, badRequest, forbidden, notFound } from "../utils/errors.js";
 import { ok } from "../utils/http.js";
 import { escapeRegex, objectId } from "../utils/validation.js";
+import { audit } from "../services/audit.js";
 
 const router = Router();
 router.use(authenticate);
@@ -50,6 +51,7 @@ router.post("/", requirePermission("groups.create"), handle(async (request, resp
   await assertNameFree(input.name);
   const userId = request.user!.id;
   const group = await Group.create({ ...input, memberIds: [userId], leaderIds: [userId], creatorIds: [userId] });
+  await audit(request, userId, { action: "GROUP_CREATED", targetType: "Group", targetId: group._id, summary: `Created group ${group.name}` });
   ok(response, toView(group.toObject()), 201);
 }));
 
@@ -77,6 +79,7 @@ router.delete("/:id", handle(async (request, response) => {
   if (await Ticket.exists({ groupId: group._id, deletedAt: null })) throw new HttpError(409, "GROUP_HAS_TICKETS", "Move or delete the group's tickets first");
   group.set({ deletedAt: new Date() });
   await group.save();
+  await audit(request, request.user!.id, { action: "GROUP_DELETED", targetType: "Group", targetId: group._id, summary: `Deleted group ${group.name}` });
   ok(response, null);
 }));
 
@@ -86,6 +89,7 @@ router.post("/:id/members", handle(async (request, response) => {
   const user = await User.exists({ _id: userId, isActive: true, deletedAt: null });
   if (!user) throw notFound("USER_NOT_FOUND", "User not found");
   await Group.updateOne({ _id: group._id }, { $addToSet: { memberIds: userId } });
+  await audit(request, request.user!.id, { action: "GROUP_MEMBER_ADDED", targetType: "Group", targetId: group._id, summary: `Added a member to ${group.name}`, metadata: { userId } });
   ok(response, { added: true });
 }));
 
@@ -100,6 +104,7 @@ router.delete("/:id/members/:userId", handle(async (request, response) => {
   if (group.memberIds.length <= 1) throw badRequest("LAST_MEMBER", "A group must have at least one member");
   if (isCreator(group, userId) && group.creatorIds.length <= 1) throw badRequest("LAST_CREATOR", "A group must keep at least one creator");
   await Group.updateOne({ _id: group._id }, { $pull: { memberIds: userId, leaderIds: userId, creatorIds: userId } });
+  await audit(request, actor.id, { action: "GROUP_MEMBER_REMOVED", targetType: "Group", targetId: group._id, summary: `Removed a member from ${group.name}`, metadata: { userId } });
   ok(response, { removed: true });
 }));
 
@@ -117,6 +122,7 @@ router.patch("/:id/roles/:userId", handle(async (request, response) => {
     if (input[role] === false) pull[field] = userId;
   }
   await Group.updateOne({ _id: group._id }, { ...(Object.keys(add).length ? { $addToSet: add } : {}), ...(Object.keys(pull).length ? { $pull: pull } : {}) });
+  await audit(request, request.user!.id, { action: "GROUP_ROLE_CHANGED", targetType: "Group", targetId: group._id, summary: `Changed roles in ${group.name}`, metadata: { userId, ...input } });
   ok(response, { updated: true });
 }));
 
