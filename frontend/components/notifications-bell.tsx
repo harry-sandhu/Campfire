@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { timeAgo } from "../lib/format";
+import { useLiveEvents } from "./realtime";
 import type { Notification } from "../lib/types";
 
 export function NotificationsBell() {
@@ -11,6 +12,8 @@ export function NotificationsBell() {
   const box = useRef<HTMLDivElement>(null);
 
   const load = useCallback(() => api<typeof data>("/notifications").then(setData).catch(() => undefined), []);
+
+  useLiveEvents((event) => { if (event.type === "notification.created") void load(); }, 200);
 
   useEffect(() => {
     void load();

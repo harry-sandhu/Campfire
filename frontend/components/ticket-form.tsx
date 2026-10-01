@@ -3,7 +3,8 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api, json } from "../lib/api";
 import { label } from "../lib/format";
-import { PRIORITIES, type Group, type Member, type Person, type Topic } from "../lib/types";
+import { PRIORITIES, type Group, type Member, type Milestone, type Person, type Topic } from "../lib/types";
+import { MarkdownEditor } from "./markdown-editor";
 import { useAuth } from "./auth-provider";
 import { Modal } from "./modal";
 import { useToast } from "./toast";
@@ -16,6 +17,8 @@ export function TicketForm({ defaultGroupId = "", onClose }: { defaultGroupId?: 
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupId, setGroupId] = useState(defaultGroupId);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [description, setDescription] = useState("");
   const [people, setPeople] = useState<Person[]>([]);
   const [topicIds, setTopicIds] = useState<string[]>([]);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
@@ -30,7 +33,9 @@ export function TicketForm({ defaultGroupId = "", onClose }: { defaultGroupId?: 
   useEffect(() => {
     setTopicIds([]);
     setAssigneeIds([]);
+    setMilestones([]);
     if (groupId) {
+      api<{ milestones: Milestone[] }>(`/groups/${groupId}/milestones`).then((d) => setMilestones(d.milestones.filter((m) => !m.closedAt))).catch(() => undefined);
       api<{ topics: Topic[]; members: Member[] }>(`/groups/${groupId}`)
         .then((d) => { setTopics(d.topics.filter((t) => !t.archivedAt)); setPeople(d.members); })
         .catch((e) => setError(e.message));
@@ -49,7 +54,7 @@ export function TicketForm({ defaultGroupId = "", onClose }: { defaultGroupId?: 
     try {
       const created = await api<{ id: string }>("/tickets", {
         method: "POST",
-        body: json({ title: f.get("title"), description: f.get("description"), priority: f.get("priority"), dueDate: f.get("dueDate") || null, groupId: groupId || null, topicIds, assigneeIds }),
+        body: json({ title: f.get("title"), description, milestoneId: f.get("milestoneId") || null, priority: f.get("priority"), dueDate: f.get("dueDate") || null, groupId: groupId || null, topicIds, assigneeIds }),
       });
       toast("Ticket created");
       onClose();
@@ -64,7 +69,7 @@ export function TicketForm({ defaultGroupId = "", onClose }: { defaultGroupId?: 
     <Modal title="Create ticket" eyebrow="NEW WORK" onClose={onClose}>
       <form onSubmit={submit} className="stack">
         <label>Title<input name="title" required maxLength={200} placeholder="What needs to be done?" /></label>
-        <label>Description<textarea name="description" rows={4} placeholder="Add context, acceptance criteria, or useful notes…" /></label>
+        <div className="field"><span className="label-text">Description</span><MarkdownEditor value={description} onChange={setDescription} rows={4} placeholder="Add context, acceptance criteria, or useful notes…" /></div>
         <div className="form-row">
           <label>Group
             <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
@@ -75,6 +80,7 @@ export function TicketForm({ defaultGroupId = "", onClose }: { defaultGroupId?: 
           <label>Priority<select name="priority" defaultValue="MEDIUM">{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select></label>
           <label>Due date<input name="dueDate" type="date" /></label>
         </div>
+        {milestones.length > 0 && <label>Milestone<select name="milestoneId" defaultValue=""><option value="">None</option>{milestones.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}
         {topics.length > 0 && (
           <fieldset><legend>Topics</legend>
             <div className="check-grid">{topics.map((t) => <label key={t.id} className="check"><input type="checkbox" checked={topicIds.includes(t.id)} onChange={() => toggle(topicIds, setTopicIds, t.id)} />{t.name}</label>)}</div>

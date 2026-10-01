@@ -1,5 +1,5 @@
 "use client";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../../../components/auth-provider";
 import { ConfirmDialog, Modal } from "../../../components/modal";
 import { PageHeader } from "../../../components/shell";
@@ -8,6 +8,8 @@ import { Avatar, Empty, ErrorNote, Spinner } from "../../../components/ui";
 import { api, json } from "../../../lib/api";
 import { useLoad } from "../../../lib/use-load";
 import type { User } from "../../../lib/types";
+
+type RoleTemplate = { id: string; name: string; description: string; permissions: string[] };
 
 type Dialog = { kind: "create" } | { kind: "permissions" | "reset" | "delete"; person: User } | null;
 
@@ -63,21 +65,7 @@ export default function PeoplePage() {
           </form>
         </Modal>
       )}
-      {dialog?.kind === "permissions" && data && (
-        <Modal title={`${dialog.person.name}'s permissions`} eyebrow="ACCESS" onClose={close}>
-          <p className="muted note">You can only change permissions you hold yourself.</p>
-          <form className="stack" onSubmit={submit((f) => api(`/users/${dialog.person.id}`, { method: "PATCH", body: json({ permissions: f.getAll("permission") }) }), "Permissions saved")}>
-            <div className="permission-list">
-              {data.permissions.map((p) => {
-                const mine = user!.role === "SUPERADMIN" || user!.permissions.includes(p);
-                return <label key={p} className="check"><input type="checkbox" name="permission" value={p} defaultChecked={dialog.person.permissions.includes(p)} disabled={!mine} />{p}</label>;
-              })}
-            </div>
-            <ErrorNote message={formError} />
-            <div className="modal-actions"><button type="button" className="ghost" onClick={close}>Cancel</button><button>Save permissions</button></div>
-          </form>
-        </Modal>
-      )}
+      {dialog?.kind === "permissions" && data && <PermissionsDialog person={dialog.person} catalog={data.permissions} onClose={close} onSaved={() => { toast("Permissions saved"); close(); reload(); }} />}
       {dialog?.kind === "reset" && (
         <Modal title={`Reset password for ${dialog.person.name}`} eyebrow="ACCESS" onClose={close}>
           <form className="stack" onSubmit={submit((f) => api(`/users/${dialog.person.id}/reset-password`, { method: "POST", body: json({ temporaryPassword: f.get("temporaryPassword") }) }), "Password reset")}>
@@ -89,5 +77,36 @@ export default function PeoplePage() {
       )}
       {dialog?.kind === "delete" && <ConfirmDialog title="Delete user" message={`Delete ${dialog.person.name}? Their sessions are revoked and they are removed from all groups.`} confirmLabel="Delete user" onClose={close} onConfirm={() => api(`/users/${dialog.person.id}`, { method: "DELETE" }).then(() => { toast("User deleted"); reload(); }).catch((e) => toast(e.message, "error"))} />}
     </>
+  );
+}
+
+function PermissionsDialog({ person, catalog, onClose, onSaved }: { person: User; catalog: string[]; onClose: () => void; onSaved: () => void }) {
+  const { user } = useAuth();
+  const [selected, setSelected] = useState<string[]>(person.permissions);
+  const [templates, setTemplates] = useState<RoleTemplate[]>([]);
+  const [error, setError] = useState("");
+  const holds = (p: string) => user!.role === "SUPERADMIN" || user!.permissions.includes(p);
+
+  useEffect(() => { api<{ templates: RoleTemplate[] }>("/users/role-templates").then((d) => setTemplates(d.templates)).catch(() => undefined); }, []);
+
+  // Applying a template replaces only the permissions the actor may change; the rest stay as they were.
+  const apply = (t: RoleTemplate) => setSelected((current) => [...current.filter((p) => !holds(p)), ...t.permissions.filter(holds)]);
+
+  return (
+    <Modal title={`${person.name}'s permissions`} eyebrow="ACCESS" wide onClose={onClose}>
+      <form className="stack" onSubmit={async (e) => { e.preventDefault(); try { await api(`/users/${person.id}`, { method: "PATCH", body: json({ permissions: selected }) }); onSaved(); } catch (err) { setError((err as Error).message); } }}>
+        {templates.length > 0 && (
+          <fieldset><legend>Start from a role</legend>
+            <div className="role-grid">{templates.map((t) => <button key={t.id} type="button" className="role-card" onClick={() => apply(t)}><strong>{t.name}</strong><small>{t.description}</small></button>)}</div>
+          </fieldset>
+        )}
+        <p className="muted note">You can only change permissions you hold yourself.</p>
+        <div className="permission-list">
+          {catalog.map((p) => <label key={p} className="check"><input type="checkbox" checked={selected.includes(p)} disabled={!holds(p)} onChange={(e) => setSelected((s) => (e.target.checked ? [...s, p] : s.filter((x) => x !== p)))} />{p}</label>)}
+        </div>
+        <ErrorNote message={error} />
+        <div className="modal-actions"><button type="button" className="ghost" onClick={onClose}>Cancel</button><button>Save permissions</button></div>
+      </form>
+    </Modal>
   );
 }

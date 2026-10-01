@@ -27,5 +27,11 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]) {
     };
   }, [run]);
 
-  return { data, error, loading, reload: run, setData };
+  /** Refetch without flashing the loading state, used for live updates. */
+  const refresh = useCallback(() => {
+    const id = ++latest.current;
+    load().then((result) => id === latest.current && setData(result)).catch(() => undefined);
+  }, deps);
+
+  return { data, error, loading, reload: run, refresh, setData };
 }

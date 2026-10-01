@@ -66,4 +66,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 }
 
+/** Authenticated download (for CSV export). Retries once after refreshing an expired token. */
+export async function apiBlob(path: string): Promise<Blob> {
+  const attempt = () => fetch(`${base}${path}`, { credentials: "include", headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} });
+  let response = await attempt();
+  if (response.status === 401 && (await refreshSession())) response = await attempt();
+  if (!response.ok) throw new ApiError("Download failed", response.status, "DOWNLOAD_FAILED");
+  return response.blob();
+}
+
+export const apiOrigin = base.replace(/\/api\/v1$/, "");
+export const getAccessToken = () => accessToken;
+export const apiBase = base;
+
 export const json = (value: unknown) => JSON.stringify(value);

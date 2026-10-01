@@ -6,6 +6,7 @@ import { useAuth } from "../../../../components/auth-provider";
 import { ConfirmDialog } from "../../../../components/modal";
 import { PageHeader } from "../../../../components/shell";
 import { useToast } from "../../../../components/toast";
+import { MilestonesSection, WebhooksSection } from "../../../../components/group-extras";
 import { Avatar, ErrorNote, Spinner } from "../../../../components/ui";
 import { api, json } from "../../../../lib/api";
 import { useLoad } from "../../../../lib/use-load";
@@ -96,6 +97,8 @@ export default function GroupPage() {
           </form>
         )}
       </section>
+      <MilestonesSection groupId={group.id} manager={manager} />
+      {manager && <WebhooksSection groupId={group.id} />}
       {confirm && <ConfirmDialog title={confirm.title} message={confirm.message} confirmLabel={confirm.label} onClose={() => setConfirm(null)} onConfirm={async () => { try { await confirm.action(); } catch (e) { toast((e as Error).message, "error"); } }} />}
     </>
   );
