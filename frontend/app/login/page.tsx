@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../../components/auth-provider";
 import { Logo } from "../../components/logo";
-import { ErrorNote, Spinner } from "../../components/ui";
+import { ErrorNote } from "../../components/ui";
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -29,7 +29,6 @@ export default function LoginPage() {
     }
   }
 
-  if (loading) return <Spinner />;
   return (
     <main className="auth-shell">
       <section className="auth-card">
@@ -40,7 +39,7 @@ export default function LoginPage() {
           <label>Email<input name="email" type="email" required autoComplete="username" placeholder="you@company.com" autoFocus /></label>
           <label>Password<input name="password" type="password" required autoComplete="current-password" /></label>
           <ErrorNote message={error} />
-          <button disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
+          <button disabled={busy || (loading && !!user)}>{busy ? "Signing in…" : "Sign in"}</button>
         </form>
         <p className="muted note" style={{ padding: "18px 0 0" }}>Trouble signing in? Ask your administrator to reset your password.</p>
       </section>

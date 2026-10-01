@@ -3,7 +3,7 @@ import { assigneesOf, formatDate, isOverdue, label } from "../lib/format";
 import type { Ref, Ticket } from "../lib/types";
 import { CommentIcon } from "./icons";
 
-export const Spinner = () => <div className="center-block"><div className="spinner" role="status" aria-label="Loading" /></div>;
+export const Spinner = ({ full = false }: { full?: boolean }) => <div className={full ? "center-block full" : "center-block"}><div className="spinner" role="status" aria-label="Loading" /></div>;
 export const ErrorNote = ({ message }: { message: string }) => (message ? <p className="error" role="alert">{message}</p> : null);
 
 /** Placeholder lines shown while a page loads, so the layout does not jump. */

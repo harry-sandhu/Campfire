@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
 import rateLimit from "express-rate-limit";
+import compression from "compression";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
 import { env } from "./config/env.js";
@@ -39,6 +40,7 @@ export function createApp() {
   // Render and similar hosts put one proxy in front of the app; without this every client shares one IP for rate limiting.
   if (env.NODE_ENV === "production") app.set("trust proxy", 1);
   app.use(helmet());
+  app.use(compression());
   app.use(cors({
     origin: (origin, callback) => {
       const ok = !origin || isAllowedOrigin(origin);
@@ -46,6 +48,7 @@ export function createApp() {
       callback(null, ok);
     },
     credentials: true,
+    maxAge: 86400, // let browsers cache preflight responses instead of repeating them on every call
   }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());

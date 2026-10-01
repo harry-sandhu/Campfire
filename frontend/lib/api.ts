@@ -9,6 +9,7 @@ export class ApiError extends Error {
 
 let accessToken = "";
 let refreshInFlight: Promise<boolean> | null = null;
+let refreshedUser: unknown = null;
 let onAuthLost: () => void = () => {};
 
 export const setAccessToken = (token: string) => {
@@ -43,8 +44,9 @@ async function send(path: string, init: RequestInit) {
 /** Refreshes the access token once, even when several requests fail at the same time. */
 export function refreshSession() {
   refreshInFlight ??= send("/auth/refresh", { method: "POST" })
-    .then((data: { accessToken: string }) => {
+    .then((data: { accessToken: string; user?: unknown }) => {
       setAccessToken(data.accessToken);
+      refreshedUser = data.user ?? null;
       return true;
     })
     .catch(() => false)
@@ -76,6 +78,8 @@ export async function apiBlob(path: string): Promise<Blob> {
 }
 
 export const apiOrigin = base.replace(/\/api\/v1$/, "");
+/** The user returned by the last successful refresh, so startup needs no separate /auth/me call. */
+export const takeRefreshedUser = <T,>() => { const u = refreshedUser as T | null; refreshedUser = null; return u; };
 export const getAccessToken = () => accessToken;
 export const apiBase = base;
 

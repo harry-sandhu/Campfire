@@ -17,6 +17,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     else if (mustChange && pathname !== "/account") router.replace("/account");
   }, [loading, user, mustChange, pathname, router]);
 
-  if (loading || !user || (mustChange && pathname !== "/account")) return <Spinner />;
+  if (loading || !user || (mustChange && pathname !== "/account")) return <Spinner full />;
   return <Shell>{children}</Shell>;
 }

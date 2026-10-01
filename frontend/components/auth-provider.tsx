@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, json, refreshSession, setAccessToken, setAuthLostHandler } from "../lib/api";
+import { api, json, refreshSession, setAccessToken, takeRefreshedUser, setAuthLostHandler } from "../lib/api";
+import { clearLoadCache } from "../lib/use-load";
 import type { User } from "../lib/types";
 
 type AuthState = {
@@ -26,11 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setAuthLostHandler(() => {
       setAccessToken("");
+      clearLoadCache();
       setUser(null);
     });
     (async () => {
       try {
-        if (await refreshSession()) await reloadUser();
+        if (await refreshSession()) {
+          const fresh = takeRefreshedUser<User>();
+          if (fresh) setUser(fresh);
+          else await reloadUser();
+        }
       } catch {
         /* not signed in */
       } finally {
@@ -48,11 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login: async (email, password) => {
         const data = await api<{ user: User; accessToken: string }>("/auth/login", { method: "POST", body: json({ email, password }) });
         setAccessToken(data.accessToken);
+        clearLoadCache();
         setUser(data.user);
       },
       logout: async () => {
         await api("/auth/logout", { method: "POST" }).catch(() => undefined);
         setAccessToken("");
+        clearLoadCache();
         setUser(null);
       },
     }),
