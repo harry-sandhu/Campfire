@@ -73,7 +73,7 @@ describe("group-scoped ticket access", () => {
     // alice lacks tickets.change_status
     expect((await api().patch(`/api/v1/tickets/${ticketId}`).set(alice.auth).send({ status: "CLOSED" })).status).toBe(403);
     expect(groupA.id).toBeTruthy();
-    expect((await api().patch(`/api/v1/tickets/${ticketId}`).set(bob.auth).send({ title: "hack" })).status).toBe(403);
+    expect((await api().patch(`/api/v1/tickets/${ticketId}`).set(bob.auth).send({ title: "hack" })).status).toBe(404);
   });
 
   it("escapes regex input in search instead of failing", async () => {

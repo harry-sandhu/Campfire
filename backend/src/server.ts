@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { createApp } from "./app.js";
 import { connectDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
+import { runDueRecurrences } from "./services/recurrence.js";
 
 const app = createApp();
 
@@ -10,6 +11,12 @@ if (env.NODE_ENV !== "test") {
   const server = app.listen(env.PORT, "0.0.0.0", () => {
     console.log(`Campfire API listening on port ${env.PORT}`);
   });
+
+  // Recurring tickets: check on start (catches up after the host slept) and then every 5 minutes.
+  const tick = () => runDueRecurrences().catch((error) => console.error("Recurring tickets failed", error));
+  void tick();
+  const recurrence = setInterval(tick, 5 * 60 * 1000);
+  recurrence.unref();
 
   const shutdown = (signal: string) => {
     console.log(`${signal} received, shutting down`);

@@ -19,6 +19,11 @@ import { groupsRouter } from "./routes/groups.js";
 import { auditRouter } from "./routes/audit.js";
 import { adminDataRouter } from "./routes/admin-data.js";
 import { apiTokensRouter } from "./routes/api-tokens.js";
+import { milestonesRouter } from "./routes/milestones.js";
+import { savedFiltersRouter } from "./routes/saved-filters.js";
+import { searchRouter } from "./routes/search.js";
+import { reportsRouter } from "./routes/reports.js";
+import { templatesRouter } from "./routes/templates.js";
 import { requireAllowedOrigin } from "./middleware/csrf.js";
 
 export function createApp() {
@@ -36,7 +41,12 @@ export function createApp() {
   app.use("/api/v1/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }), requireAllowedOrigin(allowedOrigins), authRouter);
   app.use("/api/v1/bootstrap", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5 }), bootstrapRouter);
   app.use("/api/v1/users", usersRouter);
+  app.use("/api/v1/groups/:id/milestones", milestonesRouter);
   app.use("/api/v1/groups", groupsRouter);
+  app.use("/api/v1/templates", templatesRouter);
+  app.use("/api/v1/saved-filters", savedFiltersRouter);
+  app.use("/api/v1/search", searchRouter);
+  app.use("/api/v1/reports", reportsRouter);
   app.use("/api/v1/api-tokens", apiTokensRouter);
   app.use("/api/v1/audit", auditRouter);
   app.use("/api/v1/admin/data", adminDataRouter);

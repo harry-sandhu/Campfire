@@ -8,31 +8,13 @@ import { HttpError, badRequest, forbidden, notFound } from "../utils/errors.js";
 import { ok } from "../utils/http.js";
 import { escapeRegex, objectId } from "../utils/validation.js";
 import { audit } from "../services/audit.js";
+import { loadGroup, loadManageableGroup, loadViewableGroup } from "../services/group-service.js";
 
 const router = Router();
 router.use(authenticate);
 
 const nameField = z.string().trim().min(1).max(120);
 const toView = (group: any) => ({ ...group, id: String(group._id), _id: undefined });
-
-async function loadGroup(id: unknown) {
-  const group = await Group.findOne({ _id: objectId.parse(id), deletedAt: null });
-  if (!group) throw notFound("GROUP_NOT_FOUND", "Group not found");
-  return group;
-}
-
-/** Non-members get a 404 so group existence is not revealed. */
-async function loadViewableGroup(request: any) {
-  const group = await loadGroup(request.params.id);
-  if (!canViewGroup(group, request.user)) throw notFound("GROUP_NOT_FOUND", "Group not found");
-  return group;
-}
-
-async function loadManageableGroup(request: any) {
-  const group = await loadViewableGroup(request);
-  if (!canManageGroup(group, request.user)) throw forbidden("GROUP_ACCESS_DENIED", "Only group leaders and creators can do this");
-  return group;
-}
 
 async function assertNameFree(name: string, exceptId?: unknown) {
   const clash = await Group.exists({ name: new RegExp(`^${escapeRegex(name)}$`, "i"), deletedAt: null, ...(exceptId ? { _id: { $ne: exceptId } } : {}) });
