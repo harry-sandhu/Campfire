@@ -13,7 +13,8 @@ export async function authenticate(request: Request, response: Response, next: N
     if (payload.type !== "access") return fail(response, 401, "AUTH_UNAUTHORIZED", "Invalid access token");
     const user = await User.findOne({ _id: payload.sub, isActive: true, deletedAt: null }).lean();
     if (!user) return fail(response, 401, "AUTH_UNAUTHORIZED", "User is unavailable");
-    request.user = { id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions as Permission[] };
+    request.user = { id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions as Permission[], mustChangePassword: user.mustChangePassword };
+    if (user.mustChangePassword && request.baseUrl !== "/api/v1/auth") return fail(response, 403, "PASSWORD_CHANGE_REQUIRED", "You must change your temporary password first");
     next();
   } catch { return fail(response, 401, "AUTH_UNAUTHORIZED", "Invalid or expired access token"); }
 }

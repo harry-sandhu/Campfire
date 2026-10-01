@@ -16,18 +16,21 @@ import { activityRouter } from "./routes/activity.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { docsRouter } from "./routes/docs.js";
 import { groupsRouter } from "./routes/groups.js";
+import { requireAllowedOrigin } from "./middleware/csrf.js";
 
 export function createApp() {
   const app = express();
   const allowedOrigins = [env.FRONTEND_URL, ...(env.CORS_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? [])];
 
   app.disable("x-powered-by");
+  // Render and similar hosts put one proxy in front of the app; without this every client shares one IP for rate limiting.
+  if (env.NODE_ENV === "production") app.set("trust proxy", 1);
   app.use(helmet());
   app.use(cors({ origin: (origin, callback) => callback(null, !origin || allowedOrigins.includes(origin)), credentials: true }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
-  app.use(pinoHttp());
-  app.use("/api/v1/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }), authRouter);
+  app.use(pinoHttp({ level: env.NODE_ENV === "test" ? "silent" : "info" }));
+  app.use("/api/v1/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }), requireAllowedOrigin(allowedOrigins), authRouter);
   app.use("/api/v1/bootstrap", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5 }), bootstrapRouter);
   app.use("/api/v1/users", usersRouter);
   app.use("/api/v1/groups", groupsRouter);

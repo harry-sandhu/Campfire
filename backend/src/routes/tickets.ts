@@ -1,42 +1,253 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authenticate, requirePermission } from "../middleware/auth.js";
-import { ActivityLog, Comment, Counter, Group, Notification, Ticket, TicketLink, Topic, User } from "../models/index.js";
-import { fail, ok } from "../utils/http.js";
+import { ActivityLog, Comment, Ticket, TicketLink } from "../models/index.js";
+import { hasPermission, loadVisibleTicket, ticketVisibilityFilter } from "../utils/access.js";
+import { handle } from "../utils/async-handler.js";
+import { forbidden, notFound, unprocessable } from "../utils/errors.js";
+import { ok } from "../utils/http.js";
+import { escapeRegex, objectId, unique } from "../utils/validation.js";
+import { nextTicketNumber, notify, recordActivity, validatePlacement } from "../services/ticket-service.js";
 
-const router = Router(); router.use(authenticate);
-router.use(async (request, response, next) => {
-  if (request.method === "PATCH" && (Object.prototype.hasOwnProperty.call(request.body, "assigneeId") || Object.prototype.hasOwnProperty.call(request.body, "assigneeIds")) && request.user?.role !== "SUPERADMIN" && !request.user?.permissions.includes("tickets.assign")) return fail(response, 403, "PERMISSION_DENIED", "Assigning tickets requires tickets.assign");
-  return next();
-});
+const router = Router();
+router.use(authenticate);
+
 const statuses = ["OPEN", "IN_PROGRESS", "IN_REVIEW", "BLOCKED", "COMPLETED", "CLOSED"] as const;
 const priorities = ["NO_PRIORITY", "LOW", "MEDIUM", "HIGH", "URGENT"] as const;
-const ticketInput = z.object({ title: z.string().min(1).max(200), description: z.string().max(50000).default(""), priority: z.enum(priorities).default("MEDIUM"), assigneeId: z.string().nullable().optional(), assigneeIds: z.array(z.string()).max(50).default([]), dueDate: z.coerce.date().nullable().optional(), groupId: z.string().nullable().optional(), topicIds: z.array(z.string()).max(50).default([]) });
-const toView = (ticket: any) => ({ ...ticket, id: String(ticket._id), _id: undefined });
-const requireTicketUpdateAccess = (request: any, response: any, next: any) => {
-  if (request.user?.role === "SUPERADMIN") return next();
-  const fields = Object.keys(request.body || {});
-  if (fields.length > 0 && fields.every((field) => field === "assigneeId" || field === "assigneeIds") && request.user?.permissions.includes("tickets.assign")) return next();
-  return fail(response, 403, "PERMISSION_DENIED", "Only SuperAdmin can edit ticket details; tickets.assign is required to assign tickets");
+
+const createInput = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().max(50000).default(""),
+  priority: z.enum(priorities).default("MEDIUM"),
+  assigneeId: objectId.nullable().optional(),
+  assigneeIds: z.array(objectId).max(50).default([]),
+  dueDate: z.coerce.date().nullable().optional(),
+  groupId: objectId.nullable().optional(),
+  topicIds: z.array(objectId).max(50).default([]),
+});
+
+const updateInput = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().max(50000),
+  priority: z.enum(priorities),
+  status: z.enum(statuses),
+  assigneeId: objectId.nullable(),
+  assigneeIds: z.array(objectId).max(50),
+  dueDate: z.coerce.date().nullable(),
+  groupId: objectId.nullable(),
+  topicIds: z.array(objectId).max(50),
+}).partial();
+
+/** Which permission each editable field needs. SuperAdmin bypasses all of them. */
+const fieldPermission: Record<string, string> = {
+  title: "tickets.edit",
+  description: "tickets.edit",
+  dueDate: "tickets.edit",
+  groupId: "tickets.edit",
+  topicIds: "tickets.edit",
+  status: "tickets.change_status",
+  priority: "tickets.change_priority",
+  assigneeId: "tickets.assign",
+  assigneeIds: "tickets.assign",
 };
-async function nextTicketNumber() { const counter = await Counter.findOneAndUpdate({ _id: "tickets" }, { $inc: { value: 1 } }, { upsert: true, new: true }); return `TKT-${counter!.value}`; }
-async function activity(ticketId: unknown, actorId: string, type: string, metadata: Record<string, unknown> = {}) { await ActivityLog.create({ ticketId, actorId, type, metadata }); }
-async function accessibleGroup(groupId: unknown, userId: string, role: string) { if (!groupId) return role === "SUPERADMIN"; const group = await Group.findOne({ _id: groupId, deletedAt: null }).lean(); return !!group && (role === "SUPERADMIN" || group.memberIds.some((id: any) => String(id) === userId)); }
-async function validateGroupTopics(groupId: string | null | undefined, topicIds: string[], userId: string, role: string) { if (!groupId) return topicIds.length === 0 && role === "SUPERADMIN"; if (!(await accessibleGroup(groupId, userId, role))) return false; return (await Topic.countDocuments({ _id: { $in: topicIds }, groupId, archivedAt: null })) === new Set(topicIds).size; }
-const denied = (response: any) => fail(response, 403, "GROUP_ACCESS_DENIED", "You are not a member of this group");
 
-router.get("/", requirePermission("tickets.view"), async (request, response, next) => { try { const q = z.object({ search: z.string().max(100).optional(), groupId: z.string().optional(), status: z.enum(statuses).optional(), priority: z.enum(priorities).optional(), assigneeId: z.string().optional(), mine: z.coerce.boolean().optional(), page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(50).default(20) }).parse(request.query); const filter: any = { deletedAt: null, $and: [] }; if (request.user!.role !== "SUPERADMIN") { const groups = await Group.find({ memberIds: request.user!.id, deletedAt: null }).select("_id").lean(); filter.groupId = q.groupId || { $in: groups.map(g => g._id) }; } else if (q.groupId) filter.groupId = q.groupId; if (q.search) filter.$and.push({ $or: [{ ticketNumber: new RegExp(q.search, "i") }, { title: new RegExp(q.search, "i") }, { description: new RegExp(q.search, "i") }] }); if (q.status) filter.status = q.status; if (q.priority) filter.priority = q.priority; if (q.assigneeId) filter.$and.push({ $or: [{ assigneeId: q.assigneeId }, { assigneeIds: q.assigneeId }] }); if (q.mine) filter.$and.push({ $or: [{ assigneeId: request.user!.id }, { assigneeIds: request.user!.id }] }); const [tickets, total] = await Promise.all([Ticket.find(filter).sort({ updatedAt: -1 }).skip((q.page - 1) * q.limit).limit(q.limit).populate("assigneeId assigneeIds topicIds groupId", "name email").lean(), Ticket.countDocuments(filter)]); return ok(response, { tickets: tickets.map(toView), page: q.page, limit: q.limit, total, pages: Math.ceil(total / q.limit) }); } catch (e) { next(e); } });
-router.post("/", requirePermission("tickets.create"), async (request, response, next) => { try { const input = ticketInput.parse(request.body); if (!(await validateGroupTopics(input.groupId, input.topicIds, request.user!.id, request.user!.role))) return fail(response, 403, "GROUP_ACCESS_DENIED", "Choose a group you belong to and its topics"); const assigneeIds = [...new Set([...(input.assigneeIds || []), input.assigneeId].filter(Boolean) as string[])]; if (assigneeIds.length && request.user!.role !== "SUPERADMIN" && !request.user!.permissions.includes("tickets.assign")) return fail(response, 403, "PERMISSION_DENIED", "Assigning tickets requires tickets.assign"); const ticket = await Ticket.create({ ...input, assigneeId: assigneeIds[0] || null, assigneeIds, ticketNumber: await nextTicketNumber(), createdById: request.user!.id, updatedById: request.user!.id }); await activity(ticket._id, request.user!.id, "CREATED", { assigneeIds }); if (assigneeIds.length) await Notification.insertMany(assigneeIds.filter(id => id !== request.user!.id).map(userId => ({ userId, ticketId: ticket._id, type: "TICKET_ASSIGNED", message: `You were assigned ${ticket.ticketNumber}` }))); return ok(response, toView(ticket), 201); } catch (e) { next(e); } });
-router.get("/:id", requirePermission("tickets.view"), async (request, response, next) => { try { const ticket = await Ticket.findOne({ _id: request.params.id, deletedAt: null }).populate("assigneeId assigneeIds createdById updatedById topicIds groupId", "name email").lean(); if (!ticket) return fail(response, 404, "TICKET_NOT_FOUND", "Ticket not found"); if (!(await accessibleGroup((ticket as any).groupId?._id || (ticket as any).groupId, request.user!.id, request.user!.role))) return denied(response); const [comments, links, activities] = await Promise.all([Comment.find({ ticketId: ticket._id, deletedAt: null }).populate("authorId", "name email").sort({ createdAt: 1 }).lean(), TicketLink.find({ ticketId: ticket._id }).sort({ createdAt: -1 }).lean(), ActivityLog.find({ ticketId: ticket._id }).populate("actorId", "name email").sort({ createdAt: -1 }).lean()]); return ok(response, { ticket: toView(ticket), comments, links, activities }); } catch (e) { next(e); } });
-router.patch("/:id", requireTicketUpdateAccess, async (request, response, next) => { try { const input = ticketInput.partial().extend({ status: z.enum(statuses).optional() }).parse(request.body); const ticket = await Ticket.findOne({ _id: request.params.id, deletedAt: null }); if (!ticket) return fail(response, 404, "TICKET_NOT_FOUND", "Ticket not found"); if (!(await accessibleGroup(ticket.groupId, request.user!.id, request.user!.role))) return denied(response); if (input.groupId !== undefined && !(await validateGroupTopics(input.groupId, input.topicIds || [], request.user!.id, request.user!.role))) return denied(response); if (input.topicIds !== undefined && !(await validateGroupTopics(String(ticket.groupId || input.groupId || ""), input.topicIds, request.user!.id, request.user!.role))) return fail(response, 422, "INVALID_TOPICS", "Topics must belong to the ticket group"); for (const [key, value] of Object.entries(input)) { if (value !== undefined) { const old = (ticket as any)[key]; (ticket as any)[key] = value; if (old?.toString() !== value?.toString()) await activity(ticket._id, request.user!.id, `${key.toUpperCase()}_CHANGED`, { from: old, to: value }); } } ticket.updatedById = request.user!.id as any; if (input.status === "COMPLETED" || input.status === "CLOSED") ticket.completedAt = ticket.completedAt || new Date(); await ticket.save(); return ok(response, toView(ticket)); } catch (e) { next(e); } });
-router.delete("/:id", requirePermission("tickets.delete"), async (request, response, next) => { try { const existing = await Ticket.findOne({ _id: request.params.id, deletedAt: null }); if (!existing) return fail(response, 404, "TICKET_NOT_FOUND", "Ticket not found"); if (!(await accessibleGroup(existing.groupId, request.user!.id, request.user!.role))) return denied(response); const ticket = await Ticket.findOneAndUpdate({ _id: existing._id }, { deletedAt: new Date(), updatedById: request.user!.id }, { new: true }); await activity(ticket!._id, request.user!.id, "DELETED"); return ok(response, null); } catch (e) { next(e); } });
+const listQuery = z.object({
+  search: z.string().trim().max(100).optional(),
+  groupId: objectId.optional(),
+  topicId: objectId.optional(),
+  status: z.enum(statuses).optional(),
+  priority: z.enum(priorities).optional(),
+  assigneeId: objectId.optional(),
+  mine: z.enum(["true", "false"]).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
 
-router.post("/:id/comments", requirePermission("comments.create"), async (request, response, next) => { try { const body = z.object({ body: z.string().min(1).max(10000) }).parse(request.body).body; const ticket = await Ticket.findOne({ _id: request.params.id, deletedAt: null }); if (!ticket) return fail(response, 404, "TICKET_NOT_FOUND", "Ticket not found"); const comment = await Comment.create({ ticketId: ticket._id, authorId: request.user!.id, body }); await activity(ticket._id, request.user!.id, "COMMENT_ADDED"); const assigneeIds = [...new Set([String(ticket.assigneeId || ""), ...(ticket.assigneeIds || []).map(String)].filter(id => id && id !== request.user!.id))]; if (assigneeIds.length) await Notification.insertMany(assigneeIds.map(userId => ({ userId, ticketId: ticket._id, type: "TICKET_COMMENTED", message: `${ticket.ticketNumber} received a comment` }))).catch(() => undefined); return ok(response, comment, 201); } catch (e) { next(e); } });
-router.patch("/:id/comments/:commentId", requirePermission("comments.edit"), async (request, response, next) => { try { const body = z.object({ body: z.string().min(1).max(10000) }).parse(request.body).body; const filter: any = { _id: request.params.commentId, ticketId: request.params.id, deletedAt: null }; if (request.user!.role !== "SUPERADMIN") filter.authorId = request.user!.id; const comment = await Comment.findOneAndUpdate(filter, { body }, { new: true }); return comment ? ok(response, comment) : fail(response, 404, "COMMENT_NOT_FOUND", "Comment not found"); } catch (e) { next(e); } });
-router.delete("/:id/comments/:commentId", requirePermission("comments.delete"), async (request, response, next) => { try { const filter: any = { _id: request.params.commentId, ticketId: request.params.id, deletedAt: null }; if (request.user!.role !== "SUPERADMIN") filter.authorId = request.user!.id; const comment = await Comment.findOneAndUpdate(filter, { deletedAt: new Date() }); return comment ? ok(response, null) : fail(response, 404, "COMMENT_NOT_FOUND", "Comment not found"); } catch (e) { next(e); } });
-const safeUrl = z.string().url().refine((v) => /^https?:\/\//i.test(v), "Only HTTP(S) URLs are allowed");
-router.post("/:id/links", requirePermission("ticket_links.create"), async (request, response, next) => { try { const input = z.object({ label: z.string().min(1).max(120), url: safeUrl }).parse(request.body); const ticket = await Ticket.findOne({ _id: request.params.id, deletedAt: null }); if (!ticket) return fail(response, 404, "TICKET_NOT_FOUND", "Ticket not found"); const link = await TicketLink.create({ ...input, ticketId: ticket._id, createdById: request.user!.id }); await activity(ticket._id, request.user!.id, "LINK_ADDED", { label: input.label }); return ok(response, link, 201); } catch (e) { next(e); } });
-router.patch("/:id/links/:linkId", requirePermission("ticket_links.edit"), async (request, response, next) => { try { const input = z.object({ label: z.string().min(1).max(120).optional(), url: safeUrl.optional() }).parse(request.body); const link = await TicketLink.findOneAndUpdate({ _id: request.params.linkId, ticketId: request.params.id }, input, { new: true }); return link ? ok(response, link) : fail(response, 404, "LINK_NOT_FOUND", "Link not found"); } catch (e) { next(e); } });
-router.delete("/:id/links/:linkId", requirePermission("ticket_links.delete"), async (request, response, next) => { try { const link = await TicketLink.findOneAndDelete({ _id: request.params.linkId, ticketId: request.params.id }); return link ? ok(response, null) : fail(response, 404, "LINK_NOT_FOUND", "Link not found"); } catch (e) { next(e); } });
+const toView = (ticket: any) => ({ ...ticket, id: String(ticket._id), _id: undefined });
+const populateTicket = (query: any) =>
+  query
+    .populate("assigneeId assigneeIds createdById updatedById", "name email")
+    .populate("groupId", "name")
+    .populate("topicIds", "name archivedAt");
+
+router.get("/", requirePermission("tickets.view"), handle(async (request, response) => {
+  const q = listQuery.parse(request.query);
+  const user = request.user!;
+  const and: Record<string, unknown>[] = [{ deletedAt: null }, await ticketVisibilityFilter(user)];
+  if (q.groupId) and.push({ groupId: q.groupId });
+  if (q.topicId) and.push({ topicIds: q.topicId });
+  if (q.status) and.push({ status: q.status });
+  if (q.priority) and.push({ priority: q.priority });
+  if (q.assigneeId) and.push({ $or: [{ assigneeId: q.assigneeId }, { assigneeIds: q.assigneeId }] });
+  if (q.mine === "true") and.push({ $or: [{ assigneeId: user.id }, { assigneeIds: user.id }] });
+  if (q.search) {
+    const pattern = new RegExp(escapeRegex(q.search), "i");
+    and.push({ $or: [{ ticketNumber: pattern }, { title: pattern }, { description: pattern }] });
+  }
+  const filter = { $and: and };
+  const [tickets, total] = await Promise.all([
+    populateTicket(Ticket.find(filter).sort({ updatedAt: -1 }).skip((q.page - 1) * q.limit).limit(q.limit)).lean(),
+    Ticket.countDocuments(filter),
+  ]);
+  ok(response, { tickets: tickets.map(toView), page: q.page, limit: q.limit, total, pages: Math.ceil(total / q.limit) });
+}));
+
+router.post("/", requirePermission("tickets.create"), handle(async (request, response) => {
+  const input = createInput.parse(request.body);
+  const user = request.user!;
+  const assigneeIds = unique([...input.assigneeIds, ...(input.assigneeId ? [input.assigneeId] : [])]);
+  if (assigneeIds.length && !hasPermission(user, "tickets.assign")) throw forbidden("PERMISSION_DENIED", "Assigning tickets requires tickets.assign");
+  await validatePlacement(user, input.groupId ?? null, input.topicIds, assigneeIds);
+
+  const ticket = await Ticket.create({
+    title: input.title,
+    description: input.description,
+    priority: input.priority,
+    dueDate: input.dueDate ?? undefined,
+    groupId: input.groupId ?? null,
+    topicIds: unique(input.topicIds),
+    assigneeId: assigneeIds[0] ?? null,
+    assigneeIds,
+    ticketNumber: await nextTicketNumber(),
+    createdById: user.id,
+    updatedById: user.id,
+  });
+  await recordActivity(ticket._id, user.id, "CREATED", { assigneeIds });
+  await notify(assigneeIds, ticket._id, "TICKET_ASSIGNED", `You were assigned ${ticket.ticketNumber}`, user.id);
+  ok(response, toView(ticket.toObject()), 201);
+}));
+
+router.get("/:id", requirePermission("tickets.view"), handle(async (request, response) => {
+  const user = request.user!;
+  const visible = await loadVisibleTicket(objectId.parse(request.params.id), user);
+  const ticket = await populateTicket(Ticket.findById(visible._id)).lean();
+  const [comments, links, activities] = await Promise.all([
+    hasPermission(user, "comments.view") ? Comment.find({ ticketId: visible._id, deletedAt: null }).populate("authorId", "name email").sort({ createdAt: 1 }).lean() : [],
+    hasPermission(user, "ticket_links.view") ? TicketLink.find({ ticketId: visible._id }).sort({ createdAt: -1 }).lean() : [],
+    ActivityLog.find({ ticketId: visible._id }).populate("actorId", "name email").sort({ createdAt: -1 }).limit(100).lean(),
+  ]);
+  ok(response, { ticket: toView(ticket), comments, links, activities });
+}));
+
+router.patch("/:id", handle(async (request, response) => {
+  const user = request.user!;
+  const input = updateInput.parse(request.body);
+  const fields = Object.keys(input) as (keyof typeof input)[];
+  if (!fields.length) throw unprocessable("NO_CHANGES", "No editable fields were provided");
+  const missing = fields.find((field) => !hasPermission(user, fieldPermission[field]));
+  if (missing) throw forbidden("PERMISSION_DENIED", `Changing ${missing} requires ${fieldPermission[missing]}`);
+
+  const ticket = await loadVisibleTicket(objectId.parse(request.params.id), user);
+  const before = ticket.toObject();
+
+  const touchesPlacement = "groupId" in input || "topicIds" in input || "assigneeIds" in input || "assigneeId" in input;
+  const groupId = "groupId" in input ? input.groupId ?? null : ticket.groupId ? String(ticket.groupId) : null;
+  const groupChanged = String(groupId ?? "") !== String(ticket.groupId ?? "");
+  const topicIds = input.topicIds ?? (groupChanged ? [] : (ticket.topicIds ?? []).map(String));
+  const requestedAssignees = "assigneeIds" in input || "assigneeId" in input
+    ? unique([...(input.assigneeIds ?? []), ...(input.assigneeId ? [input.assigneeId] : [])])
+    : unique([...(ticket.assigneeIds ?? []).map(String), ...(ticket.assigneeId ? [String(ticket.assigneeId)] : [])]);
+  if (touchesPlacement) await validatePlacement(user, groupId, topicIds, requestedAssignees);
+
+  const changes: Record<string, unknown> = {};
+  for (const key of ["title", "description", "priority", "status", "dueDate"] as const) if (key in input) changes[key] = input[key];
+  if ("groupId" in input) changes.groupId = groupId;
+  if ("topicIds" in input || groupChanged) changes.topicIds = unique(topicIds);
+  if ("assigneeIds" in input || "assigneeId" in input) {
+    changes.assigneeIds = requestedAssignees;
+    changes.assigneeId = requestedAssignees[0] ?? null;
+  }
+  if (input.status === "COMPLETED" || input.status === "CLOSED") changes.completedAt = ticket.completedAt ?? new Date();
+  else if (input.status) changes.completedAt = null;
+
+  const activityKeys = Object.keys(changes).filter((key) => key !== "assigneeId" && key !== "completedAt");
+  ticket.set({ ...changes, updatedById: user.id });
+  await ticket.save();
+
+  for (const key of activityKeys) {
+    const from = (before as any)[key];
+    const to = (changes as any)[key];
+    if (JSON.stringify(from ?? null) !== JSON.stringify(to ?? null)) await recordActivity(ticket._id, user.id, `${key.toUpperCase()}_CHANGED`, { from, to });
+  }
+  if (changes.assigneeIds) {
+    const previous = (before.assigneeIds ?? []).map(String);
+    await notify(requestedAssignees.filter((id) => !previous.includes(id)), ticket._id, "TICKET_ASSIGNED", `You were assigned ${ticket.ticketNumber}`, user.id);
+  }
+  ok(response, toView(ticket.toObject()));
+}));
+
+router.delete("/:id", requirePermission("tickets.delete"), handle(async (request, response) => {
+  const user = request.user!;
+  const ticket = await loadVisibleTicket(objectId.parse(request.params.id), user);
+  ticket.set({ deletedAt: new Date(), updatedById: user.id });
+  await ticket.save();
+  await recordActivity(ticket._id, user.id, "DELETED");
+  ok(response, null);
+}));
+
+const commentBody = z.object({ body: z.string().trim().min(1).max(10000) });
+
+router.post("/:id/comments", requirePermission("comments.create"), handle(async (request, response) => {
+  const user = request.user!;
+  const { body } = commentBody.parse(request.body);
+  const ticket = await loadVisibleTicket(objectId.parse(request.params.id), user);
+  const comment = await Comment.create({ ticketId: ticket._id, authorId: user.id, body });
+  await recordActivity(ticket._id, user.id, "COMMENT_ADDED");
+  await notify([...(ticket.assigneeIds ?? []).map(String), String(ticket.assigneeId ?? "")], ticket._id, "TICKET_COMMENTED", `${ticket.ticketNumber} received a comment`, user.id);
+  ok(response, comment, 201);
+}));
+
+/** Comments can be changed by their author; SuperAdmin may moderate any comment. */
+async function findOwnComment(request: any, ticketId: string) {
+  const user = request.user!;
+  const ticket = await loadVisibleTicket(ticketId, user);
+  const filter: Record<string, unknown> = { _id: objectId.parse(request.params.commentId), ticketId: ticket._id, deletedAt: null };
+  if (user.role !== "SUPERADMIN") filter.authorId = user.id;
+  return { ticket, filter };
+}
+
+router.patch("/:id/comments/:commentId", requirePermission("comments.edit"), handle(async (request, response) => {
+  const { body } = commentBody.parse(request.body);
+  const { ticket, filter } = await findOwnComment(request, objectId.parse(request.params.id));
+  const comment = await Comment.findOneAndUpdate(filter, { body }, { new: true });
+  if (!comment) throw notFound("COMMENT_NOT_FOUND", "Comment not found");
+  await recordActivity(ticket._id, request.user!.id, "COMMENT_EDITED");
+  ok(response, comment);
+}));
+
+router.delete("/:id/comments/:commentId", requirePermission("comments.delete"), handle(async (request, response) => {
+  const { ticket, filter } = await findOwnComment(request, objectId.parse(request.params.id));
+  const comment = await Comment.findOneAndUpdate(filter, { deletedAt: new Date() });
+  if (!comment) throw notFound("COMMENT_NOT_FOUND", "Comment not found");
+  await recordActivity(ticket._id, request.user!.id, "COMMENT_DELETED");
+  ok(response, null);
+}));
+
+const safeUrl = z.string().url().max(2048).refine((value) => /^https?:\/\//i.test(value), "Only HTTP(S) URLs are allowed");
+const linkInput = z.object({ label: z.string().trim().min(1).max(120), url: safeUrl });
+
+router.post("/:id/links", requirePermission("ticket_links.create"), handle(async (request, response) => {
+  const user = request.user!;
+  const input = linkInput.parse(request.body);
+  const ticket = await loadVisibleTicket(objectId.parse(request.params.id), user);
+  const link = await TicketLink.create({ ...input, ticketId: ticket._id, createdById: user.id });
+  await recordActivity(ticket._id, user.id, "LINK_ADDED", { label: input.label });
+  ok(response, link, 201);
+}));
+
+router.patch("/:id/links/:linkId", requirePermission("ticket_links.edit"), handle(async (request, response) => {
+  const input = linkInput.partial().parse(request.body);
+  const ticket = await loadVisibleTicket(objectId.parse(request.params.id), request.user!);
+  const link = await TicketLink.findOneAndUpdate({ _id: objectId.parse(request.params.linkId), ticketId: ticket._id }, input, { new: true });
+  if (!link) throw notFound("LINK_NOT_FOUND", "Link not found");
+  ok(response, link);
+}));
+
+router.delete("/:id/links/:linkId", requirePermission("ticket_links.delete"), handle(async (request, response) => {
+  const ticket = await loadVisibleTicket(objectId.parse(request.params.id), request.user!);
+  const link = await TicketLink.findOneAndDelete({ _id: objectId.parse(request.params.linkId), ticketId: ticket._id });
+  if (!link) throw notFound("LINK_NOT_FOUND", "Link not found");
+  ok(response, null);
+}));
 
 export { router as ticketsRouter };
