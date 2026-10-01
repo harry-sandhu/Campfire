@@ -24,6 +24,8 @@ import { savedFiltersRouter } from "./routes/saved-filters.js";
 import { searchRouter } from "./routes/search.js";
 import { reportsRouter } from "./routes/reports.js";
 import { templatesRouter } from "./routes/templates.js";
+import { eventsRouter } from "./routes/events.js";
+import { webhooksRouter } from "./routes/webhooks.js";
 import { requireAllowedOrigin } from "./middleware/csrf.js";
 
 export function createApp() {
@@ -42,6 +44,8 @@ export function createApp() {
   app.use("/api/v1/bootstrap", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5 }), bootstrapRouter);
   app.use("/api/v1/users", usersRouter);
   app.use("/api/v1/groups/:id/milestones", milestonesRouter);
+  app.use("/api/v1/groups/:id/webhooks", webhooksRouter);
+  app.use("/api/v1/events", eventsRouter);
   app.use("/api/v1/groups", groupsRouter);
   app.use("/api/v1/templates", templatesRouter);
   app.use("/api/v1/saved-filters", savedFiltersRouter);
