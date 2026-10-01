@@ -1,5 +1,15 @@
 import { Router } from "express";
+import { buildSpec } from "../openapi.js";
 
 const router = Router();
-router.get("/", (_request, response) => response.json({ openapi: "3.0.3", info: { title: "Pjira API", version: "0.1.0" }, servers: [{ url: "/api/v1" }], paths: { "/auth/login": { post: { summary: "Authenticate a user" } }, "/tickets": { get: { summary: "List tickets" }, post: { summary: "Create a ticket" } }, "/tickets/{id}": { get: { summary: "Get a ticket" }, patch: { summary: "Update a ticket" } } } }));
+const spec = buildSpec();
+
+router.get("/openapi.json", (_request, response) => response.json(spec));
+
+/** Interactive reference. Swagger UI loads from a CDN, so this one page relaxes the content security policy. */
+router.get("/", (_request, response) => {
+  response.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self'");
+  response.type("html").send(`<!doctype html><html><head><meta charset="utf-8"><title>Campfire API</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"></head><body><div id="ui"></div><script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script><script>SwaggerUIBundle({ url: "/api/docs/openapi.json", dom_id: "#ui" });</script></body></html>`);
+});
+
 export { router as docsRouter };
