@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useAuth } from "../../../components/auth-provider";
 import { PageHeader } from "../../../components/shell";
-import { Empty, ErrorNote, Skeleton } from "../../../components/ui";
+import { Avatar, Empty, ErrorNote, Panel, Skeleton } from "../../../components/ui";
 import { api } from "../../../lib/api";
 import { label, timeAgo } from "../../../lib/format";
 import { useLoad } from "../../../lib/use-load";
@@ -15,21 +15,23 @@ export default function ActivityPage() {
 
   return (
     <>
-      <PageHeader title="Activity" />
-      <section className="panel">
-        <div className="panel-head"><div><h2>Recent events</h2><p className="muted">Changes to tickets you can see.</p></div></div>
-        {!allowed ? <Empty title="No access" hint="You need the activity.view permission." /> : error ? <ErrorNote message={error} /> : loading && !data ? <Skeleton rows={5} /> : !data?.logs.length ? <Empty title="No activity yet" /> : (
-          <div className="activity-list activity-page">
+      <PageHeader title="Activity" eyebrow="Insight" />
+      <Panel title="Recent events" description="Changes to tickets you can see.">
+        {!allowed ? <Empty title="No access" hint="You need the activity.view permission." /> : error ? <ErrorNote message={error} /> : loading && !data ? <Skeleton rows={5} className="rounded-none border-0" /> : !data?.logs.length ? <Empty title="No activity yet" /> : (
+          <ol className="m-0 list-none p-0">
             {data.logs.map((log) => (
-              <p key={log._id}>
-                <span>{log.actorId?.name ?? "User"}</span> {label(log.type).toLowerCase()}
-                {log.ticketId && <> on <Link href={`/tickets/${log.ticketId._id}`} className="ticket-id">{log.ticketId.ticketNumber}</Link> {log.ticketId.title}</>}
-                {" "}<small className="muted">{timeAgo(log.createdAt)}</small>
-              </p>
+              <li key={log._id} className="flex items-start gap-3 border-b border-line px-5 py-3 text-sm last:border-0">
+                <Avatar name={log.actorId?.name ?? "User"} size={30} />
+                <p className="min-w-0 flex-1">
+                  <span className="font-semibold">{log.actorId?.name ?? "User"}</span> <span className="text-muted">{label(log.type).toLowerCase()}</span>
+                  {log.ticketId && <> on <Link href={`/tickets/${log.ticketId._id}`} className="font-medium hover:text-accent hover:underline"><span className="mr-1 font-mono text-xs text-muted">{log.ticketId.ticketNumber}</span>{log.ticketId.title}</Link></>}
+                </p>
+                <small className="shrink-0 text-muted">{timeAgo(log.createdAt)}</small>
+              </li>
             ))}
-          </div>
+          </ol>
         )}
-      </section>
+      </Panel>
     </>
   );
 }

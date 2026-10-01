@@ -10,7 +10,7 @@ export function Markdown({ children }: { children: string }) {
         remarkPlugins={[remarkGfm]}
         components={{
           a: ({ href, children: label }) => <a href={href} target="_blank" rel="noopener noreferrer nofollow">{label}</a>,
-          img: ({ alt }) => <span className="muted">[image: {alt || "omitted"}]</span>,
+          img: ({ alt }) => <span className="text-muted">[image: {alt || "omitted"}]</span>,
         }}
       >
         {children}

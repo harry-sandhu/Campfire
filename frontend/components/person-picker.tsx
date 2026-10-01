@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { Person } from "../lib/types";
+import { fieldClass } from "./controls";
 import { CheckIcon, ChevronIcon } from "./icons";
 import { Avatar, AvatarStack } from "./ui";
 
@@ -24,24 +25,24 @@ export function PersonPicker({ people, value, onChange, label = "Assign people",
   const toggle = (id: string) => onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
 
   return (
-    <div className="picker" ref={box}>
-      <button type="button" className="picker-trigger secondary" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} aria-label={label} onClick={() => { setOpen(!open); setQuery(""); }}>
-        <span className="picker-value">{selected.length ? <><AvatarStack people={selected} max={4} /> <span>{selected.length === 1 ? selected[0].name : `${selected.length} people`}</span></> : <span className="muted">{empty}</span>}</span>
+    <div className="relative" ref={box}>
+      <button type="button" className="flex min-h-9 w-full items-center justify-between gap-2 rounded-md border border-line-strong bg-field px-2.5 py-1 text-left text-sm font-medium text-ink transition hover:bg-hover disabled:opacity-60" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} aria-label={label} onClick={() => { setOpen(!open); setQuery(""); }}>
+        <span className="inline-flex min-w-0 items-center gap-2 overflow-hidden">{selected.length ? <><AvatarStack people={selected} max={4} /> <span className="truncate">{selected.length === 1 ? selected[0].name : `${selected.length} people`}</span></> : <span className="text-muted">{empty}</span>}</span>
         <ChevronIcon />
       </button>
       {open && (
-        <div className="picker-panel">
-          <input type="search" autoFocus aria-label="Search people" placeholder="Search people…" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <ul className="picker-list" role="listbox" aria-multiselectable="true" aria-label={label}>
+        <div className="absolute inset-x-0 top-[calc(100%+4px)] z-40 min-w-60 animate-[pop_0.14s_ease-out] rounded-xl border border-line-strong bg-card p-2 shadow-lg">
+          <input className={`${fieldClass} h-9`} type="search" autoFocus aria-label="Search people" placeholder="Search people…" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <ul className="mt-1.5 max-h-56 list-none overflow-auto p-0" role="listbox" aria-multiselectable="true" aria-label={label}>
             {shown.map((p) => {
               const on = value.includes(p.id);
               return (
                 <li key={p.id} role="option" aria-selected={on}>
-                  <button type="button" className="picker-option" onClick={() => toggle(p.id)}><Avatar name={p.name} size={22} /><span>{p.name}</span>{on && <span className="tick"><CheckIcon /></span>}</button>
+                  <button type="button" className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-sm font-medium text-ink hover:bg-hover" onClick={() => toggle(p.id)}><Avatar name={p.name} size={24} /><span>{p.name}</span>{on && <span className="ml-auto text-accent"><CheckIcon /></span>}</button>
                 </li>
               );
             })}
-            {!shown.length && <li className="muted note">No one matches.</li>}
+            {!shown.length && <li className="px-2 py-2 text-[13px] text-muted">No one matches.</li>}
           </ul>
         </div>
       )}

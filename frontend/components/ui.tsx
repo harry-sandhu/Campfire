@@ -134,3 +134,18 @@ export function TicketRow({ ticket }: { ticket: Ticket }) {
     </Link>
   );
 }
+
+/** Card with an optional title row, used for settings-style sections. */
+export function Panel({ title, description, action, children, className = "" }: { title?: string; description?: string; action?: React.ReactNode; children?: React.ReactNode; className?: string }) {
+  return (
+    <section className={`overflow-hidden rounded-lg border border-line bg-card shadow-sm ${className}`}>
+      {(title || action) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+          <div className="min-w-0">{title && <h2 className="text-base font-semibold">{title}</h2>}{description && <p className="mt-0.5 max-w-2xl text-[13px] text-muted">{description}</p>}</div>
+          {action}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}

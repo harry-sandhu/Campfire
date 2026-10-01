@@ -190,13 +190,13 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
               {STATUSES.map((s) => {
                 const items = data.tickets.filter((t) => t.status === s);
                 return (
-                  <div className={`grid min-h-32 content-start gap-2.5 rounded-xl border p-2.5 transition-colors ${dropTarget === s ? "border-accent bg-accent-soft" : "border-line bg-soft"}`} key={s}
+                  <div className={`grid min-h-32 content-start gap-2.5 rounded-xl border p-2.5 transition-colors ${dropTarget === s ? "border-accent bg-accent-soft" : "border-line bg-soft"}`} key={s} data-testid="board-column"
                     onDragOver={(e) => { if (can("tickets.change_status")) { e.preventDefault(); setDropTarget(s); } }}
                     onDragLeave={() => setDropTarget("")}
                     onDrop={(e) => { setDropTarget(""); const id = e.dataTransfer.getData("text/plain"); const t = data.tickets.find((x) => x.id === id); if (t) void moveCard(t, s); }}>
                     <h3 className="flex items-center gap-2 px-1 text-[13px] font-semibold"><i className="size-2.5 rounded-full" style={{ background: statusColor(s) }} aria-hidden="true" />{label(s)}<span className="ml-auto rounded-full bg-card px-2 text-xs font-semibold tabular-nums text-muted">{items.length}</span></h3>
                     {items.map((t) => (
-                      <Link className={`grid gap-2 rounded-lg border border-line bg-card p-3 shadow-sm transition hover:-translate-y-px hover:border-line-strong hover:shadow-md ${t.priority === "URGENT" ? "shadow-[inset_3px_0_0_var(--p-urgent)]" : t.priority === "HIGH" ? "shadow-[inset_3px_0_0_var(--p-high)]" : ""} ${can("tickets.change_status") ? "cursor-grab active:cursor-grabbing" : ""}`} key={t.id} href={`/tickets/${t.id}`} draggable={can("tickets.change_status")} onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)}>
+                      <Link className={`grid gap-2 rounded-lg border border-line bg-card p-3 shadow-sm transition hover:-translate-y-px hover:border-line-strong hover:shadow-md ${t.priority === "URGENT" ? "shadow-[inset_3px_0_0_var(--p-urgent)]" : t.priority === "HIGH" ? "shadow-[inset_3px_0_0_var(--p-high)]" : ""} ${can("tickets.change_status") ? "cursor-grab active:cursor-grabbing" : ""}`} key={t.id} data-testid="board-card" href={`/tickets/${t.id}`} draggable={can("tickets.change_status")} onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)}>
                         <span className="font-mono text-xs text-muted">{t.ticketNumber}</span>
                         <strong className="text-sm font-semibold leading-snug">{t.title}</strong>
                         <span className="flex items-center justify-between gap-2"><PriorityPill priority={t.priority} /><AvatarStack people={assigneesOf(t)} /></span>

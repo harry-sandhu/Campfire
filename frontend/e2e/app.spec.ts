@@ -23,7 +23,7 @@ test("create a group and a ticket, comment with Markdown, change status", async 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fix the login page");
   await page.getByLabel("New comment").fill("This is **important**");
   await page.getByRole("button", { name: "Comment" }).click();
-  await expect(page.locator(".comment strong", { hasText: "important" })).toBeVisible();
+  await expect(page.getByTestId("comment").locator("strong", { hasText: "important" })).toBeVisible();
 
   await page.getByLabel("Status").selectOption("IN_PROGRESS");
   await page.getByText("Activity", { exact: false }).locator("visible=true").first().click(); // activity is collapsed by default
@@ -57,8 +57,8 @@ test("drag a card on the board to change its status", async ({ page }) => {
   const ticket = await post(admin, "/tickets", { title: "Drag me" });
   await signInAsAdmin(page);
   await page.goto("/tickets?view=board");
-  const card = page.locator(".card", { hasText: "Drag me" });
-  await card.dragTo(page.locator(".column", { hasText: "In progress" }));
+  const card = page.getByTestId("board-card").filter({ hasText: "Drag me" });
+  await card.dragTo(page.getByTestId("board-column").filter({ hasText: "In progress" }));
   await expect.poll(async () => (await get(admin, `/tickets/${ticket.id}`)).ticket.status).toBe("IN_PROGRESS");
 });
 
@@ -79,6 +79,7 @@ test("SuperAdmin can permanently delete tickets from data management", async ({ 
   await page.goto("/admin/data");
   await page.getByLabel("Age").selectOption({ label: "Any age" }); // the page defaults to tickets untouched for a year
   await page.getByLabel("Search", { exact: true }).fill("Disposable");
+  await expect(page.getByText(/· 1 match/)).toBeVisible(); // the search is debounced; selecting before it settles would be cleared
   const row = page.locator("tr", { hasText: "Disposable ticket" });
   await row.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Delete selected…" }).click();

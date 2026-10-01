@@ -55,7 +55,7 @@ export default function OverviewPage() {
               <Stat label="Completed" value={data.counts.completed} tone="done" href="/tickets?status=COMPLETED" />
             </div>
             {nothing ? (
-              <div className="rounded-lg border border-line bg-card shadow-sm"><Empty title="Nothing on the fire yet" hint="Create the first ticket, or ask to be added to a group." action={can("tickets.create") ? <Link href="/tickets" className="link-button">Go to tickets →</Link> : undefined} /></div>
+              <div className="rounded-lg border border-line bg-card shadow-sm"><Empty title="Nothing on the fire yet" hint="Create the first ticket, or ask to be added to a group." action={can("tickets.create") ? <Link href="/tickets" className="text-sm font-semibold text-accent hover:underline">Go to tickets →</Link> : undefined} /></div>
             ) : <div className="grid gap-8">
               <Section title="Overdue" hint="Past their due date and still open." tickets={data.overdue} tone="var(--s-blocked)" href="/tickets" linkLabel="All tickets" />
               <Section title="Due this week" tone="var(--s-progress)" tickets={data.dueSoon} />

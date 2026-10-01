@@ -1,4 +1,5 @@
 "use client";
+import { Button, fieldClass } from "./controls";
 import { useRef, useState } from "react";
 import type { Person } from "../lib/types";
 
@@ -40,16 +41,16 @@ export function CommentComposer({ people, onSubmit }: { people: Person[]; onSubm
   }
 
   return (
-    <div className="composer">
-      <textarea ref={field} rows={3} value={body} aria-label="New comment" placeholder="Write a comment… use @ to mention someone. Markdown supported." maxLength={10000}
+    <div className="relative mt-4 grid gap-2">
+      <textarea className={`${fieldClass} leading-relaxed`} ref={field} rows={3} value={body} aria-label="New comment" placeholder="Write a comment… use @ to mention someone. Markdown supported." maxLength={10000}
         onChange={(e) => onChange(e.target.value, e.target.selectionStart)}
         onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void submit(); } if (e.key === "Escape") setSuggest(null); }} />
       {matches.length > 0 && (
-        <ul className="mention-list" role="listbox" aria-label="Mention suggestions">
-          {matches.map((p) => <li key={p.id} role="option" aria-selected={false}><button type="button" className="ghost" onMouseDown={(e) => { e.preventDefault(); pick(p); }}>{p.name}</button></li>)}
+        <ul className="absolute bottom-14 left-0 z-10 m-0 min-w-48 list-none rounded-lg border border-line-strong bg-card p-1 shadow-lg" role="listbox" aria-label="Mention suggestions">
+          {matches.map((p) => <li key={p.id} role="option" aria-selected={false}><button type="button" className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-1.5 text-left text-sm font-medium text-ink hover:bg-hover" onMouseDown={(e) => { e.preventDefault(); pick(p); }}>{p.name}</button></li>)}
         </ul>
       )}
-      <div className="composer-foot"><small className="muted">Ctrl+Enter to send</small><button type="button" disabled={busy || !body.trim()} onClick={() => void submit()}>{busy ? "Sending…" : "Comment"}</button></div>
+      <div className="flex items-center justify-between"><small className="text-muted">Ctrl+Enter to send</small><Button disabled={busy || !body.trim()} onClick={() => void submit()}>{busy ? "Sending…" : "Comment"}</Button></div>
     </div>
   );
 }

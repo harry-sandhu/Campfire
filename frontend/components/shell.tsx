@@ -121,7 +121,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line bg-paper/90 px-4 backdrop-blur md:px-8">
           <Link href="/" className="mr-auto inline-flex items-center gap-2 font-bold md:hidden" aria-label="Campfire home"><Logo size={26} />Campfire</Link>
           <button type="button" className="ml-auto hidden h-9 w-80 items-center gap-2 whitespace-nowrap rounded-md border border-line-strong bg-card px-3 text-left text-sm font-normal text-muted transition hover:border-muted hover:bg-card hover:text-ink md:flex" onClick={() => setPalette(true)} aria-label="Search (Ctrl K)"><SearchIcon /><span className="truncate">Search tickets, groups, people</span><kbd className={`${kbdClass} ml-auto shrink-0`}>Ctrl K</kbd></button>
-          <IconButton label="Search" className="md:hidden" onClick={() => setPalette(true)}><SearchIcon size={18} /></IconButton>
+          <IconButton label="Open search" className="md:hidden" onClick={() => setPalette(true)}><SearchIcon size={18} /></IconButton>
           <NotificationsBell />
           <Popover label="Account menu" className="w-72" trigger={({ toggle, ...aria }) => <button type="button" className="rounded-full border-0 bg-transparent p-0.5 transition hover:ring-2 hover:ring-line-strong focus-visible:outline-2 focus-visible:outline-accent" onClick={toggle} aria-label="Account menu" {...aria}><Avatar name={user.name} size={32} /></button>}>
             {(close) => (

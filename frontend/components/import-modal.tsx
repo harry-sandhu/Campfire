@@ -1,4 +1,5 @@
 "use client";
+import { Button, Field, fieldClass } from "./controls";
 import { ChangeEvent, useState } from "react";
 import { api, json } from "../lib/api";
 import { csvToTickets } from "../lib/csv";
@@ -44,23 +45,23 @@ export function ImportModal({ groups, defaultGroupId, onClose, onDone }: { group
   }
 
   return (
-    <Modal title="Import tickets from CSV" eyebrow="IMPORT" onClose={onClose}>
-      <div className="stack">
-        <p className="muted note">Use a header row with <strong>Title</strong> and optionally Description, Priority, Status and Due date. Exports from Campfire can be re-imported.</p>
-        <label>Group
-          <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+    <Modal title="Import tickets from CSV" eyebrow="Import" onClose={onClose}>
+      <div className="grid gap-5">
+        <p className="rounded-lg bg-info-soft px-4 py-3 text-[13px]">Use a header row with <strong>Title</strong> and optionally Description, Priority, Status and Due date. Exports from Campfire can be re-imported.</p>
+        <Field label="Group">
+          <select className={fieldClass} value={groupId} onChange={(e) => setGroupId(e.target.value)}>
             <option value="">No group (private)</option>
             {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
-        </label>
-        <label>CSV file<input type="file" accept=".csv,text/csv" onChange={pick} /></label>
+        </Field>
+        <Field label="CSV file"><input className={`${fieldClass} file:mr-3 file:rounded file:border-0 file:bg-soft file:px-3 file:py-1 file:text-sm file:font-semibold`} type="file" accept=".csv,text/csv" onChange={pick} /></Field>
         {parsed?.error && <ErrorNote message={parsed.error} />}
-        {parsed && !parsed.error && <p>{parsed.rows.length} tickets ready to import{parsed.skipped ? `, ${parsed.skipped} rows skipped (no title)` : ""}.</p>}
-        {result && <div className="notice">Created {result.created}. {result.errors.length ? `${result.errors.length} rows failed: ${result.errors.slice(0, 3).map((e) => `row ${e.row} (${e.error})`).join(", ")}` : "No errors."}</div>}
+        {parsed && !parsed.error && <p className="font-medium">{parsed.rows.length} tickets ready to import{parsed.skipped ? `, ${parsed.skipped} rows skipped (no title)` : ""}.</p>}
+        {result && <div className="rounded-lg bg-success-soft px-4 py-3 text-sm">Created {result.created}. {result.errors.length ? `${result.errors.length} rows failed: ${result.errors.slice(0, 3).map((e) => `row ${e.row} (${e.error})`).join(", ")}` : "No errors."}</div>}
         <ErrorNote message={error} />
-        <div className="modal-actions">
-          <button type="button" className="ghost" onClick={onClose}>Close</button>
-          <button type="button" disabled={busy || !parsed?.rows.length || !!result} onClick={() => void submit()}>{busy ? "Importing…" : "Import"}</button>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button disabled={busy || !parsed?.rows.length || !!result} onClick={() => void submit()}>{busy ? "Importing…" : "Import"}</Button>
         </div>
       </div>
     </Modal>

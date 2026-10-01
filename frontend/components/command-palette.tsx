@@ -1,4 +1,5 @@
 "use client";
+import { fieldClass } from "./controls";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
@@ -52,22 +53,22 @@ export function CommandPalette({ onClose, onCreate }: { onClose: () => void; onC
   useEffect(() => setActive(0), [query, results]);
 
   return (
-    <Modal title="Command palette" onClose={onClose}>
-      <input ref={input} className="palette-input" autoFocus placeholder="Search tickets, groups, people, or jump to a page…" aria-label="Command search" value={query} onChange={(e) => setQuery(e.target.value)}
+    <Modal title="Search" onClose={onClose}>
+      <input ref={input} className={`${fieldClass} h-11 text-base`} autoFocus placeholder="Search tickets, groups, people, or jump to a page…" aria-label="Command search" value={query} onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, items.length - 1)); }
           else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
           else if (e.key === "Enter") { e.preventDefault(); items[active]?.run(); }
         }} />
-      <ul className="palette-list" role="listbox">
+      <ul className="mt-3 grid list-none gap-0.5 p-0" role="listbox">
         {items.slice(0, 12).map((item, index) => (
-          <li key={item.id} role="option" aria-selected={index === active} className={index === active ? "active" : ""} onMouseEnter={() => setActive(index)} onClick={item.run}>
-            <span>{item.label}</span><small>{item.hint}</small>
+          <li key={item.id} role="option" aria-selected={index === active} className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${index === active ? "bg-accent-soft shadow-[inset_3px_0_0_var(--flame)]" : ""}`} onMouseEnter={() => setActive(index)} onClick={item.run}>
+            <span className="truncate font-medium">{item.label}</span><small className="shrink-0 rounded bg-soft px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted">{item.hint}</small>
           </li>
         ))}
-        {!items.length && <li className="muted">No matches.</li>}
+        {!items.length && <li className="px-3 py-6 text-center text-muted">No matches.</li>}
       </ul>
-      <p className="muted note palette-help">↑ ↓ to move · Enter to open · Esc to close</p>
+      <p className="mt-3 text-xs text-muted">↑ ↓ to move · Enter to open · Esc to close</p>
     </Modal>
   );
 }
