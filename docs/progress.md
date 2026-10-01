@@ -37,3 +37,7 @@ Added responsive authenticated shell, login, dashboard, ticket list, search, cre
 Added Render/Vercel deployment documentation, API reference, environment templates, production build scripts, and a permission test. Backend build, lint, and tests pass; frontend production build and TypeScript lint pass.
 
 Remaining expansion items for a later iteration are richer Markdown editing, full in-app People/Settings/Notifications screens, OpenAPI-generated Swagger UI, and comprehensive database-backed integration/E2E coverage.
+
+## Phase 9 — Groups, topics and hardening: complete
+
+Added groups and topics with group-scoped visibility across tickets, comments, links, dashboard and activity; ungrouped tickets visible to creator/assignees; field-level ticket permissions; `groups.create` permission; permission delegation limits; refresh-token reuse detection, origin check on cookie endpoints, timing-safe login and server-enforced password change; centralised error handling; escaped search; a rebuilt frontend (App Router pages, token refresh, group/member/topic management, board view, notifications, accessible dialogs, dark mode); integration tests and CI.

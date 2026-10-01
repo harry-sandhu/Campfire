@@ -1,0 +1,93 @@
+"use client";
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
+import { api, json } from "../lib/api";
+import { label } from "../lib/format";
+import { PRIORITIES, type Group, type Member, type Person, type Topic } from "../lib/types";
+import { useAuth } from "./auth-provider";
+import { Modal } from "./modal";
+import { useToast } from "./toast";
+import { ErrorNote } from "./ui";
+
+export function TicketForm({ defaultGroupId = "", onClose }: { defaultGroupId?: string; onClose: () => void }) {
+  const { can } = useAuth();
+  const router = useRouter();
+  const toast = useToast();
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupId, setGroupId] = useState(defaultGroupId);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [topicIds, setTopicIds] = useState<string[]>([]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const canAssign = can("tickets.assign");
+
+  useEffect(() => {
+    api<{ groups: Group[] }>("/groups").then((d) => setGroups(d.groups)).catch((e) => setError(e.message));
+  }, []);
+
+  useEffect(() => {
+    setTopicIds([]);
+    setAssigneeIds([]);
+    if (groupId) {
+      api<{ topics: Topic[]; members: Member[] }>(`/groups/${groupId}`)
+        .then((d) => { setTopics(d.topics.filter((t) => !t.archivedAt)); setPeople(d.members); })
+        .catch((e) => setError(e.message));
+    } else {
+      setTopics([]);
+      if (canAssign) api<{ users: Person[] }>("/users/assignees").then((d) => setPeople(d.users)).catch(() => undefined);
+    }
+  }, [groupId, canAssign]);
+
+  const toggle = (list: string[], set: (v: string[]) => void, id: string) => set(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const f = new FormData(event.currentTarget);
+    setBusy(true);
+    try {
+      const created = await api<{ id: string }>("/tickets", {
+        method: "POST",
+        body: json({ title: f.get("title"), description: f.get("description"), priority: f.get("priority"), dueDate: f.get("dueDate") || null, groupId: groupId || null, topicIds, assigneeIds }),
+      });
+      toast("Ticket created");
+      onClose();
+      router.push(`/tickets/${created.id}`);
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Create ticket" eyebrow="NEW WORK" onClose={onClose}>
+      <form onSubmit={submit} className="stack">
+        <label>Title<input name="title" required maxLength={200} placeholder="What needs to be done?" /></label>
+        <label>Description<textarea name="description" rows={4} placeholder="Add context, acceptance criteria, or useful notes…" /></label>
+        <div className="form-row">
+          <label>Group
+            <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+              <option value="">No group (only you and assignees)</option>
+              {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </label>
+          <label>Priority<select name="priority" defaultValue="MEDIUM">{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select></label>
+          <label>Due date<input name="dueDate" type="date" /></label>
+        </div>
+        {topics.length > 0 && (
+          <fieldset><legend>Topics</legend>
+            <div className="check-grid">{topics.map((t) => <label key={t.id} className="check"><input type="checkbox" checked={topicIds.includes(t.id)} onChange={() => toggle(topicIds, setTopicIds, t.id)} />{t.name}</label>)}</div>
+          </fieldset>
+        )}
+        {canAssign && people.length > 0 && (
+          <fieldset><legend>Assign to</legend>
+            <div className="check-grid">{people.map((p) => <label key={p.id} className="check"><input type="checkbox" checked={assigneeIds.includes(p.id)} onChange={() => toggle(assigneeIds, setAssigneeIds, p.id)} />{p.name}</label>)}</div>
+          </fieldset>
+        )}
+        <ErrorNote message={error} />
+        <div className="modal-actions"><button type="button" className="ghost" onClick={onClose}>Cancel</button><button disabled={busy}>{busy ? "Creating…" : "Create ticket"}</button></div>
+      </form>
+    </Modal>
+  );
+}
