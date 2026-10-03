@@ -35,6 +35,7 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [bulkPeople, setBulkPeople] = useState<Member[]>([]);
+  const [bulkMilestones, setBulkMilestones] = useState<Milestone[]>([]);
   const [dropTarget, setDropTarget] = useState("");
   const debounced = useDebounce(search);
 
@@ -97,6 +98,11 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
   useEffect(() => {
     setBulkPeople([]);
     if (singleGroup && can("tickets.assign")) api<{ members: Member[] }>(`/groups/${singleGroup}`).then((d) => setBulkPeople(d.members)).catch(() => undefined);
+  }, [singleGroup, can]);
+
+  useEffect(() => {
+    setBulkMilestones([]);
+    if (singleGroup && can("tickets.edit")) api<{ milestones: Milestone[] }>(`/groups/${singleGroup}/milestones`).then((d) => setBulkMilestones(d.milestones.filter((m) => !m.closedAt))).catch(() => undefined);
   }, [singleGroup, can]);
 
   async function bulk(action: string, value: string | null, message: string) {
@@ -192,6 +198,7 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
             {can("tickets.change_priority") && <select className={`${selectCls} h-8 text-[13px]`} aria-label="Set priority" value="" onChange={(e) => e.target.value && void bulk("priority", e.target.value, "Priority updated")}><option value="">Set priority…</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>}
             {bulkPeople.length > 0 && <select className={`${selectCls} h-8 text-[13px]`} aria-label="Assign to" value="" onChange={(e) => e.target.value && void bulk("assign", e.target.value, "Assigned")}><option value="">Assign to…</option>{bulkPeople.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
             {can("tickets.edit") && <select className={`${selectCls} h-8 text-[13px]`} aria-label="Move to group" value="" onChange={(e) => e.target.value && void bulk("move", e.target.value === "none" ? null : e.target.value, "Moved")}><option value="">Move to group…</option><option value="none">No group</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>}
+            {bulkMilestones.length > 0 && <select className={`${selectCls} h-8 text-[13px]`} aria-label="Add to milestone" value="" onChange={(e) => e.target.value && void bulk("milestone", e.target.value === "none" ? null : e.target.value, "Milestone updated")}><option value="">Add to milestone…</option>{bulkMilestones.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}<option value="none">Remove from milestone</option></select>}
             {can("tickets.delete") && <Button variant="ghost" size="sm" className="text-danger" onClick={() => setConfirmDelete(true)}>Delete</Button>}
             <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelected([])}>Clear</Button>
           </div>

@@ -3,6 +3,7 @@ import { createApp } from "./app.js";
 import { connectDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { runDueRecurrences } from "./services/recurrence.js";
+import { runMilestoneAlerts, runTimeAutomations, startAutomationEngine } from "./services/automations.js";
 import { startWebhookDispatcher } from "./services/webhooks.js";
 
 const app = createApp();
@@ -14,9 +15,15 @@ if (env.NODE_ENV !== "test") {
   });
 
   startWebhookDispatcher();
+  startAutomationEngine();
 
   // Recurring tickets: check on start (catches up after the host slept) and then every 5 minutes.
-  const tick = () => runDueRecurrences().catch((error) => console.error("Recurring tickets failed", error));
+  // The same timer drives overdue/stuck automations and the milestone due-soon alerts.
+  const tick = () => Promise.all([
+    runDueRecurrences().catch((error) => console.error("Recurring tickets failed", error)),
+    runTimeAutomations().catch((error) => console.error("Time-based automations failed", error)),
+    runMilestoneAlerts().catch((error) => console.error("Milestone alerts failed", error)),
+  ]);
   void tick();
   const recurrence = setInterval(tick, 5 * 60 * 1000);
   recurrence.unref();

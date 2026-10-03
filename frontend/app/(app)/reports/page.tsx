@@ -1,6 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
-import { fieldClass } from "../../../components/controls";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { fieldClass, Tabs } from "../../../components/controls";
+import { PeopleReport } from "../../../components/people-report";
 import { PageHeader } from "../../../components/shell";
 import { Empty, ErrorNote, Skeleton, Stat, statusColor } from "../../../components/ui";
 import { api } from "../../../lib/api";
@@ -54,6 +56,13 @@ function Throughput({ series }: { series: Report["series"] }) {
 }
 
 export default function ReportsPage() {
+  return <Suspense fallback={<Skeleton rows={6} />}><Reports /></Suspense>;
+}
+
+function Reports() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const tab = params.get("tab") === "people" ? "people" : "overview";
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupId, setGroupId] = useState("");
   const [days, setDays] = useState(90);
@@ -68,9 +77,11 @@ export default function ReportsPage() {
   return (
     <>
       <PageHeader title="Reports" eyebrow="Insight">
-        <select className={select} aria-label="Group" value={groupId} onChange={(e) => setGroupId(e.target.value)}><option value="">All my groups</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
-        <select className={select} aria-label="Range" value={days} onChange={(e) => setDays(Number(e.target.value))}>{[30, 90, 180, 365].map((d) => <option key={d} value={d}>Last {d} days</option>)}</select>
+        {tab === "overview" && <select className={select} aria-label="Group" value={groupId} onChange={(e) => setGroupId(e.target.value)}><option value="">All my groups</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>}
+        {tab === "overview" && <select className={select} aria-label="Range" value={days} onChange={(e) => setDays(Number(e.target.value))}>{[30, 90, 180, 365].map((d) => <option key={d} value={d}>Last {d} days</option>)}</select>}
       </PageHeader>
+      <Tabs label="Report sections" tabs={[{ id: "overview", label: "Overview" }, { id: "people", label: "People" }]} value={tab} onChange={(id) => router.replace(id === "people" ? "?tab=people" : "?")} />
+      {tab === "people" ? <PeopleReport groups={groups} initialPerson={params.get("person") ?? ""} /> : <>
       <ErrorNote message={error} />
       {loading && !data ? <Skeleton rows={6} /> : data && (total === 0 ? <div className={card}><Empty title="No tickets to report on yet" /></div> : <>
         <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -87,6 +98,7 @@ export default function ReportsPage() {
           <section className={card}><h2 className="text-base font-semibold">Open by group</h2><Bars rows={data.byGroup.map((g) => ({ name: g.name, value: g.count }))} /></section>
         </div>
       </>)}
+      </>}
     </>
   );
 }

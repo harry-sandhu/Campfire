@@ -56,7 +56,7 @@ router.get("/export", requirePermission("tickets.view"), handle(async (request, 
 
 const bulkInput = z.object({
   ids: z.array(objectId).min(1).max(100),
-  action: z.enum(["status", "priority", "assign", "unassign", "move", "delete"]),
+  action: z.enum(["status", "priority", "assign", "unassign", "move", "milestone", "delete"]),
   value: z.string().nullable().optional(),
 });
 
@@ -76,6 +76,7 @@ router.post("/bulk", handle(async (request, response) => {
           assign: () => ({ assigneeIds: unique([...assignees, objectId.parse(value)]) }),
           unassign: () => ({ assigneeIds: assignees.filter((a) => a !== objectId.parse(value)) }),
           move: () => ({ groupId: value ? objectId.parse(value) : null }),
+          milestone: () => ({ milestoneId: value ? objectId.parse(value) : null }),
         }[action]();
         await updateTicket(user, ticket, patch);
       }

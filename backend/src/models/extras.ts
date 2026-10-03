@@ -14,6 +14,7 @@ const milestoneSchema = new Schema({
   description: { type: String, default: "", maxlength: 1000 },
   dueDate: Date,
   closedAt: Date,
+  dueSoonNotifiedAt: Date,
 }, { timestamps: true });
 
 const templateSchema = new Schema({
@@ -65,7 +66,55 @@ const webhookSchema = new Schema({
   active: { type: Boolean, default: true },
   lastStatus: String,
   lastDeliveredAt: Date,
+  failures: { type: Number, default: 0 },
 }, { timestamps: true });
+
+/** One row per delivery attempt, kept for 30 days so leaders can see what was sent and resend failures. */
+const webhookDeliverySchema = new Schema({
+  webhookId: id("Webhook", { required: true, index: true }),
+  groupId: id("Group", { required: true }),
+  event: { type: String, required: true },
+  ticketId: String,
+  data: { type: Schema.Types.Mixed, default: {} },
+  status: { type: Number, default: 0 },
+  ok: { type: Boolean, default: false },
+  durationMs: { type: Number, default: 0 },
+  error: String,
+  createdAt: { type: Date, default: Date.now, expires: 30 * 86400 },
+});
+webhookDeliverySchema.index({ webhookId: 1, createdAt: -1 });
+
+const automationSchema = new Schema({
+  groupId: id("Group", { required: true, index: true }),
+  createdById: id("User", { required: true }),
+  name: { type: String, required: true, trim: true, maxlength: 120 },
+  active: { type: Boolean, default: true },
+  trigger: { type: Schema.Types.Mixed, required: true },
+  conditions: { type: [Schema.Types.Mixed], default: [] },
+  actions: { type: [Schema.Types.Mixed], default: [] },
+  lastRunAt: Date,
+  runCount: { type: Number, default: 0 },
+  failCount: { type: Number, default: 0 },
+}, { timestamps: true });
+
+const automationRunSchema = new Schema({
+  automationId: id("Automation", { required: true }),
+  groupId: id("Group", { required: true }),
+  ticketId: id("Ticket"),
+  ok: { type: Boolean, default: true },
+  error: String,
+  createdAt: { type: Date, default: Date.now, expires: 30 * 86400 },
+});
+automationRunSchema.index({ automationId: 1, createdAt: -1 });
+
+/** Claims a time-based automation for one ticket. The unique index makes "fire once" safe across instances. */
+const automationFireSchema = new Schema({
+  automationId: id("Automation", { required: true }),
+  ticketId: id("Ticket", { required: true }),
+  marker: { type: String, default: "" },
+  createdAt: { type: Date, default: Date.now, expires: 90 * 86400 },
+});
+automationFireSchema.index({ automationId: 1, ticketId: 1, marker: 1 }, { unique: true });
 
 /** Failed-login counters keyed by email, so unknown and known accounts behave identically. */
 const loginAttemptSchema = new Schema({
@@ -81,4 +130,8 @@ export const TicketTemplate = model("TicketTemplate", templateSchema);
 export const AuditLog = model("AuditLog", auditSchema);
 export const ApiToken = model("ApiToken", apiTokenSchema);
 export const Webhook = model("Webhook", webhookSchema);
+export const WebhookDelivery = model("WebhookDelivery", webhookDeliverySchema);
+export const Automation = model("Automation", automationSchema);
+export const AutomationRun = model("AutomationRun", automationRunSchema);
+export const AutomationFire = model("AutomationFire", automationFireSchema);
 export const LoginAttempt = model("LoginAttempt", loginAttemptSchema);

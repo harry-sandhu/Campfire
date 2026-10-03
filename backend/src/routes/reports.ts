@@ -4,6 +4,8 @@ import { authenticate, requirePermission } from "../middleware/auth.js";
 import { Ticket } from "../models/index.js";
 import { ticketVisibilityFilter } from "../utils/access.js";
 import { handle } from "../utils/async-handler.js";
+import { canSeePerson, peopleSummary, personDetail } from "../services/people-report.js";
+import { notFound } from "../utils/errors.js";
 import { ok } from "../utils/http.js";
 import { objectId } from "../utils/validation.js";
 
@@ -66,6 +68,20 @@ router.get("/", handle(async (request, response) => {
     completedInRange: lead[0]?.count ?? 0,
     days: q.days,
   });
+}));
+
+/** Who was given what, and did they finish it. People see themselves; leaders see their groups; SuperAdmin sees everyone. */
+router.get("/people", handle(async (request, response) => {
+  ok(response, { people: await peopleSummary(request.user!) });
+}));
+
+router.get("/people/:userId", handle(async (request, response) => {
+  const userId = objectId.parse(request.params.userId);
+  const q = z.object({ groupId: z.union([objectId, z.literal("none")]).optional(), status: z.string().max(20).optional(), days: z.coerce.number().int().min(1).max(730).optional() }).parse(request.query);
+  if (!(await canSeePerson(request.user!, userId))) throw notFound("PERSON_NOT_FOUND", "Person not found");
+  const detail = await personDetail(request.user!, userId, q);
+  if (!detail.user) throw notFound("PERSON_NOT_FOUND", "Person not found");
+  ok(response, detail);
 }));
 
 export { router as reportsRouter };

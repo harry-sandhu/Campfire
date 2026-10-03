@@ -28,6 +28,7 @@ import { reportsRouter } from "./routes/reports.js";
 import { templatesRouter } from "./routes/templates.js";
 import { eventsRouter } from "./routes/events.js";
 import { webhooksRouter } from "./routes/webhooks.js";
+import { automationsRouter } from "./routes/automations.js";
 import { buildAllowedOrigins, normalizeOrigin, reportRejectedOrigin } from "./config/origins.js";
 import { requireAllowedOrigin } from "./middleware/csrf.js";
 
@@ -68,6 +69,7 @@ export function createApp() {
   app.use("/api/v1/users", usersRouter);
   app.use("/api/v1/groups/:id/milestones", milestonesRouter);
   app.use("/api/v1/groups/:id/webhooks", webhooksRouter);
+  app.use("/api/v1/groups/:id/automations", automationsRouter);
   app.use("/api/v1/events", eventsRouter);
   app.use("/api/v1/groups", groupsRouter);
   app.use("/api/v1/templates", templatesRouter);

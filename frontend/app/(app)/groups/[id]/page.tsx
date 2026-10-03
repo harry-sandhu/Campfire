@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { useAuth } from "../../../../components/auth-provider";
+import { AutomationsSection } from "../../../../components/automations-section";
 import { MilestonesSection, WebhooksSection } from "../../../../components/group-extras";
 import { Badge, Button, buttonClass, fieldClass, panelClass, rowClass, Tabs } from "../../../../components/controls";
 import { ConfirmDialog } from "../../../../components/modal";
@@ -14,7 +15,7 @@ import { useLoad } from "../../../../lib/use-load";
 import type { Group, Member, Person, Topic } from "../../../../lib/types";
 
 type Detail = { group: Group; members: Member[]; topics: Topic[] };
-type Tab = "members" | "topics" | "milestones" | "integrations";
+type Tab = "members" | "topics" | "milestones" | "automations" | "integrations";
 
 export default function GroupPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +38,7 @@ export default function GroupPage() {
     { id: "members", label: `Members (${members.length})`, show: true },
     { id: "topics", label: `Topics (${topics.filter((t) => !t.archivedAt).length})`, show: true },
     { id: "milestones", label: "Milestones", show: true },
+    { id: "automations", label: "Automations", show: manager },
     { id: "integrations", label: "Integrations", show: manager },
   ];
 
@@ -80,6 +82,7 @@ export default function GroupPage() {
                     <option value="member">Member</option><option value="leader">Leader</option><option value="creator">Creator</option>
                   </select>
                 ) : <Badge>{role[0].toUpperCase() + role.slice(1)}</Badge>}
+                {(manager || self) && <Link href={`/reports?tab=people&person=${m.id}`} className={buttonClass("ghost", "sm")}>Work</Link>}
                 {(manager || self) && <Button variant="ghost" size="sm" className="text-danger" onClick={() => setConfirm({ title: self ? "Leave group" : "Remove member", message: `${self ? "You will" : `${m.name} will`} lose access to this group's tickets.`, label: self ? "Leave" : "Remove", action: () => api(`/groups/${id}/members/${m.id}`, { method: "DELETE" }).then(() => (self && !admin ? router.replace("/groups") : reload())) })}>{self ? "Leave" : "Remove"}</Button>}
               </div>
             );
@@ -115,6 +118,7 @@ export default function GroupPage() {
       )}
 
       {tab === "milestones" && <MilestonesSection groupId={group.id} manager={manager} />}
+      {tab === "automations" && manager && <AutomationsSection groupId={group.id} members={members} topics={topics} />}
       {tab === "integrations" && manager && <WebhooksSection groupId={group.id} />}
 
       {confirm && <ConfirmDialog title={confirm.title} message={confirm.message} confirmLabel={confirm.label} onClose={() => setConfirm(null)} onConfirm={async () => { try { await confirm.action(); } catch (e) { toast((e as Error).message, "error"); } }} />}
