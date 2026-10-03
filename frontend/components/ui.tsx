@@ -35,7 +35,7 @@ export function Empty({ title, hint, action }: { title: string; hint?: string; a
   );
 }
 
-const STATUS_COLOR: Record<string, string> = { OPEN: "var(--s-open)", IN_PROGRESS: "var(--s-progress)", IN_REVIEW: "var(--s-review)", BLOCKED: "var(--s-blocked)", COMPLETED: "var(--s-done)", CLOSED: "var(--s-closed)" };
+const STATUS_COLOR: Record<string, string> = { OPEN: "var(--s-open)", IN_PROGRESS: "var(--s-progress)", IN_REVIEW: "var(--s-review)", WAITING: "var(--s-waiting)", BLOCKED: "var(--s-blocked)", COMPLETED: "var(--s-done)", CLOSED: "var(--s-closed)" };
 export const statusColor = (status: string) => STATUS_COLOR[status] ?? "var(--s-open)";
 
 /** Coloured dot with plain text: readable without colour, and quieter than a filled pill. */

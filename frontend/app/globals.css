@@ -36,6 +36,7 @@
   --color-s-open: var(--s-open);
   --color-s-progress: var(--s-progress);
   --color-s-review: var(--s-review);
+  --color-s-waiting: var(--s-waiting);
   --color-s-blocked: var(--s-blocked);
   --color-s-done: var(--s-done);
   --color-s-closed: var(--s-closed);
@@ -86,7 +87,7 @@
   --nav-active: #f7f1e6;
   --nav-line: #cdbfa8;
   /* status and priority */
-  --s-open: #6b747b; --s-progress: #a8680f; --s-review: #3f6a94; --s-blocked: #b3351f; --s-done: #3f7a46; --s-closed: #8a8273;
+  --s-open: #6b747b; --s-progress: #a8680f; --s-review: #3f6a94; --s-waiting: #7a5aa6; --s-blocked: #b3351f; --s-done: #3f7a46; --s-closed: #8a8273;
   --p-high: #a8680f; --p-urgent: #b3351f;
   --chart-1: #3f6a94; --chart-2: #3f7a46; --chart-3: #a8680f;
   --logo-flame: #e0612a; --logo-mid: #f0a23a; --logo-core: #fbe3a8; --logo-wood: #6b4a32;
@@ -110,7 +111,7 @@
     --flame: #ee7a3c; --amber: #f0b64f; --coal: #0f0c0a; --pine: #86c28a; --smoke: #98a3ac;
     --danger: #f1907a; --danger-soft: #3d211b; --success-soft: #1f2f20; --warn-soft: #3a2d16; --info-soft: #1d2a38;
     --nav-bg: #110e0b; --nav-text: #c2b6a4; --nav-label: #8b8070; --nav-hover: #1c1713; --nav-active: #271f18; --nav-line: #2a231c;
-    --s-open: #9aa3ab; --s-progress: #e6b04f; --s-review: #86aee0; --s-blocked: #f0826e; --s-done: #86c28a; --s-closed: #8d8576;
+    --s-open: #9aa3ab; --s-progress: #e6b04f; --s-review: #86aee0; --s-waiting: #b79be0; --s-blocked: #f0826e; --s-done: #86c28a; --s-closed: #8d8576;
     --p-high: #e6b04f; --p-urgent: #f0826e; --chart-1: #86aee0; --chart-2: #86c28a; --chart-3: #e6b04f;
     --logo-wood: #8a6446;
     --elev-sm: 0 1px 2px #00000040; --elev-md: 0 6px 18px #00000059; --elev-lg: 0 18px 44px #00000080; --scrim: #0a0806b3;
@@ -124,7 +125,7 @@
   --flame: #ee7a3c; --amber: #f0b64f; --coal: #0f0c0a; --pine: #86c28a; --smoke: #98a3ac;
   --danger: #f1907a; --danger-soft: #3d211b; --success-soft: #1f2f20; --warn-soft: #3a2d16; --info-soft: #1d2a38;
   --nav-bg: #110e0b; --nav-text: #c2b6a4; --nav-label: #8b8070; --nav-hover: #1c1713; --nav-active: #271f18; --nav-line: #2a231c;
-  --s-open: #9aa3ab; --s-progress: #e6b04f; --s-review: #86aee0; --s-blocked: #f0826e; --s-done: #86c28a; --s-closed: #8d8576;
+  --s-open: #9aa3ab; --s-progress: #e6b04f; --s-review: #86aee0; --s-waiting: #b79be0; --s-blocked: #f0826e; --s-done: #86c28a; --s-closed: #8d8576;
   --p-high: #e6b04f; --p-urgent: #f0826e; --chart-1: #86aee0; --chart-2: #86c28a; --chart-3: #e6b04f;
   --logo-wood: #8a6446;
   --elev-sm: 0 1px 2px #00000040; --elev-md: 0 6px 18px #00000059; --elev-lg: 0 18px 44px #00000080; --scrim: #0a0806b3;

@@ -4,6 +4,7 @@ import { authenticate, requirePermission } from "../middleware/auth.js";
 import { ActivityLog, Comment, Ticket, TicketLink } from "../models/index.js";
 import { createInput, listQuery, statuses, priorities, updateInput } from "../schemas/ticket.js";
 import { audit } from "../services/audit.js";
+import { addDependency, afterRelationRemoved } from "../services/dependencies.js";
 import { publish } from "../services/events.js";
 import { buildTicketFilter, createTicket, filterViewers, interestedUsers, notify, recordActivity, restoreRecentlyDeleted, softDeleteTicket, updateTicket, withCommentCounts } from "../services/ticket-service.js";
 import { hasPermission, loadVisibleTicket, ticketVisibilityFilter } from "../utils/access.js";
@@ -221,14 +222,18 @@ router.delete("/:id/watch", requirePermission("tickets.view"), handle(async (req
 /* ---------- relations ---------- */
 
 router.post("/:id/relations", requirePermission("tickets.edit"), handle(async (request, response) => {
-  const input = z.object({ type: z.enum(["BLOCKS", "RELATES"]), ticketId: objectId }).parse(request.body);
+  const input = z.object({ type: z.enum(["BLOCKS", "RELATES", "WAITS_ON"]), ticketId: objectId }).parse(request.body);
   const ticket = await loadVisibleTicket(objectId.parse(request.params.id), request.user!);
   if (input.ticketId === String(ticket._id)) throw unprocessable("INVALID_RELATION", "A ticket cannot relate to itself");
   const target = await loadVisibleTicket(input.ticketId, request.user!);
   const exists = (ticket.relations ?? []).some((r) => String(r.ticketId) === input.ticketId) || (target.relations ?? []).some((r) => String(r.ticketId) === String(ticket._id));
   if (exists) throw new HttpError(409, "RELATION_EXISTS", "These tickets are already related");
-  await Ticket.updateOne({ _id: ticket._id }, { $push: { relations: { type: input.type, ticketId: target._id } } }, { timestamps: false });
-  await recordActivity(ticket._id, request.user!.id, "RELATION_ADDED", { type: input.type, target: target.ticketNumber });
+  if (input.type === "WAITS_ON") await addDependency(request.user!, ticket, target); // this ticket waits on the other one
+  else if (input.type === "BLOCKS") await addDependency(request.user!, target, ticket); // this ticket blocks the other, so the other waits
+  else {
+    await Ticket.updateOne({ _id: ticket._id }, { $push: { relations: { type: input.type, ticketId: target._id } } }, { timestamps: false });
+    await recordActivity(ticket._id, request.user!.id, "RELATION_ADDED", { type: input.type, target: target.ticketNumber });
+  }
   publish({ type: "ticket.updated", ticketId: String(ticket._id), groupId: ticket.groupId ? String(ticket.groupId) : null, data: { changed: ["relations"] } });
   ok(response, null, 201);
 }));
@@ -240,6 +245,7 @@ router.delete("/:id/relations/:targetId", requirePermission("tickets.edit"), han
   await Ticket.updateOne({ _id: ticket._id }, { $pull: { relations: { ticketId: target._id } } }, { timestamps: false });
   await Ticket.updateOne({ _id: target._id }, { $pull: { relations: { ticketId: ticket._id } } }, { timestamps: false });
   await recordActivity(ticket._id, request.user!.id, "RELATION_REMOVED", { target: target.ticketNumber });
+  await afterRelationRemoved(request.user!, ticket, target);
   ok(response, null);
 }));
 

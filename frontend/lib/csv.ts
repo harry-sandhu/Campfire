@@ -27,7 +27,7 @@ export function parseCsv(text: string): string[][] {
 
 const alias: Record<string, string> = { title: "title", name: "title", summary: "title", description: "description", details: "description", priority: "priority", status: "status", "due date": "dueDate", due: "dueDate", duedate: "dueDate" };
 const PRIORITIES = ["NO_PRIORITY", "LOW", "MEDIUM", "HIGH", "URGENT"];
-const STATUSES = ["OPEN", "IN_PROGRESS", "IN_REVIEW", "BLOCKED", "COMPLETED", "CLOSED"];
+const STATUSES = ["OPEN", "IN_PROGRESS", "IN_REVIEW", "WAITING", "BLOCKED", "COMPLETED", "CLOSED"];
 const normalise = (value: string, allowed: string[]) => { const v = value.trim().toUpperCase().replace(/[\s-]+/g, "_"); return allowed.includes(v) ? v : undefined; };
 
 /** Turns CSV text into import rows by matching header names (title, description, priority, status, due date). */

@@ -17,7 +17,7 @@ export type Group = { id: string; name: string; description?: string; memberIds:
 export type Topic = { id: string; name: string; description?: string; archivedAt?: string | null };
 export type Member = { id: string; name: string; email: string };
 
-export const STATUSES = ["OPEN", "IN_PROGRESS", "IN_REVIEW", "BLOCKED", "COMPLETED", "CLOSED"] as const;
+export const STATUSES = ["OPEN", "IN_PROGRESS", "IN_REVIEW", "WAITING", "BLOCKED", "COMPLETED", "CLOSED"] as const;
 export const PRIORITIES = ["NO_PRIORITY", "LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 export type Status = (typeof STATUSES)[number];
 export type Priority = (typeof PRIORITIES)[number];

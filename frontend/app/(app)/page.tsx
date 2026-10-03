@@ -9,7 +9,7 @@ import { greeting } from "../../lib/format";
 import { useLoad } from "../../lib/use-load";
 import type { Ticket } from "../../lib/types";
 
-type Dashboard = { counts: { open: number; inProgress: number; inReview: number; blocked: number; completed: number; overdue: number }; overdue: Ticket[]; dueSoon: Ticket[]; mine: Ticket[]; recent: Ticket[] };
+type Dashboard = { counts: { open: number; inProgress: number; inReview: number; waiting: number; blocked: number; completed: number; overdue: number }; overdue: Ticket[]; dueSoon: Ticket[]; mine: Ticket[]; recent: Ticket[] };
 
 function Section({ title, hint, href, linkLabel, tickets, tone }: { title: string; hint?: string; href?: string; linkLabel?: string; tickets: Ticket[]; tone?: string }) {
   if (!tickets.length) return null;
@@ -50,6 +50,7 @@ export default function OverviewPage() {
               <Stat label="Open" value={data.counts.open} href="/tickets?status=OPEN" />
               <Stat label="In progress" value={data.counts.inProgress} tone="progress" href="/tickets?status=IN_PROGRESS" />
               <Stat label="In review" value={data.counts.inReview} tone="review" href="/tickets?status=IN_REVIEW" />
+              <Stat label="Waiting" value={data.counts.waiting} tone="review" href="/tickets?status=WAITING" />
               <Stat label="Blocked" value={data.counts.blocked} tone="blocked" alert href="/tickets?status=BLOCKED" />
               <Stat label="Overdue" value={data.counts.overdue} tone="overdue" alert />
               <Stat label="Completed" value={data.counts.completed} tone="done" href="/tickets?status=COMPLETED" />

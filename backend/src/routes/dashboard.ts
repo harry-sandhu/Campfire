@@ -32,7 +32,7 @@ router.get("/", handle(async (request, response) => {
   ]);
   const byStatus = Object.fromEntries(counts.map((item) => [item._id, item.count]));
   ok(response, {
-    counts: { open: byStatus.OPEN || 0, inProgress: byStatus.IN_PROGRESS || 0, inReview: byStatus.IN_REVIEW || 0, blocked: byStatus.BLOCKED || 0, completed: byStatus.COMPLETED || 0, overdue: overdueCount },
+    counts: { open: byStatus.OPEN || 0, inProgress: byStatus.IN_PROGRESS || 0, inReview: byStatus.IN_REVIEW || 0, waiting: byStatus.WAITING || 0, blocked: byStatus.BLOCKED || 0, completed: byStatus.COMPLETED || 0, overdue: overdueCount },
     overdue, dueSoon, mine: assigned, recent,
   });
 }));

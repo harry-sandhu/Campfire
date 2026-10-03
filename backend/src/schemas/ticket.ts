@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { objectId } from "../utils/validation.js";
 
-export const statuses = ["OPEN", "IN_PROGRESS", "IN_REVIEW", "BLOCKED", "COMPLETED", "CLOSED"] as const;
+export const statuses = ["OPEN", "IN_PROGRESS", "IN_REVIEW", "WAITING", "BLOCKED", "COMPLETED", "CLOSED"] as const;
 export const priorities = ["NO_PRIORITY", "LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
 export const createInput = z.object({

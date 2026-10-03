@@ -174,7 +174,7 @@ export default function TicketPage() {
               <h2 className={h2}>Related tickets</h2>
               {data.relations.map((r) => (
                 <div className={linkRow} key={`${r.type}${r.id}`}>
-                  <Link href={`/tickets/${r.id}`} className="hover:underline"><span className="mr-2 rounded border border-line-strong px-1.5 text-[11px] font-semibold text-muted">{{ blocks: "Blocks", blockedBy: "Blocked by", relates: "Related" }[r.type]}</span><span className="mr-2 font-mono text-xs text-muted">{r.ticketNumber}</span>{r.title}</Link>
+                  <Link href={`/tickets/${r.id}`} className="hover:underline"><span className="mr-2 rounded border border-line-strong px-1.5 text-[11px] font-semibold text-muted">{{ blocks: "Needed by", blockedBy: "Waiting on", relates: "Related" }[r.type]}</span><span className="mr-2 font-mono text-xs text-muted">{r.ticketNumber}</span>{r.title}</Link>
                   {canEdit && <button type="button" className={textBtn} onClick={() => void run(() => api(`/tickets/${id}/relations/${r.id}`, { method: "DELETE" }), "Relation removed")}>Remove</button>}
                 </div>
               ))}
@@ -254,7 +254,7 @@ export default function TicketPage() {
 function RelateDialog({ ticketId, onClose, onDone }: { ticketId: string; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
   const [query, setQuery] = useState("");
-  const [type, setType] = useState("BLOCKS");
+  const [type, setType] = useState("WAITS_ON");
   const [results, setResults] = useState<{ id: string; ticketNumber: string; title: string }[]>([]);
 
   useEffect(() => {
@@ -266,7 +266,7 @@ function RelateDialog({ ticketId, onClose, onDone }: { ticketId: string; onClose
   return (
     <Modal title="Relate to another ticket" onClose={onClose}>
       <div className="grid gap-4">
-        <label className="grid gap-1.5 text-sm font-semibold">Relationship<select className={fieldClass} value={type} onChange={(e) => setType(e.target.value)}><option value="BLOCKS">This ticket blocks…</option><option value="RELATES">Is related to…</option></select></label>
+        <label className="grid gap-1.5 text-sm font-semibold">Relationship<select className={fieldClass} value={type} onChange={(e) => setType(e.target.value)}><option value="WAITS_ON">This ticket waits on…</option><option value="BLOCKS">This ticket is needed by…</option><option value="RELATES">Is related to…</option></select></label>
         <label className="grid gap-1.5 text-sm font-semibold">Find a ticket<input className={fieldClass} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Number or title" autoFocus /></label>
         <ul className="grid gap-1">
           {results.map((t) => <li key={t.id}><button type="button" className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-2 text-left text-sm font-medium text-ink hover:bg-hover" onClick={async () => { try { await api(`/tickets/${ticketId}/relations`, { method: "POST", body: json({ type, ticketId: t.id }) }); toast("Tickets related"); onDone(); } catch (e) { toast((e as Error).message, "error"); } }}><span className="font-mono text-xs text-muted">{t.ticketNumber}</span>{t.title}</button></li>)}

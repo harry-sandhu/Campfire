@@ -5,6 +5,7 @@ import { canViewGroup, hasPermission, ticketVisibilityFilter } from "../utils/ac
 import { forbidden, notFound, unprocessable } from "../utils/errors.js";
 import { escapeRegex, unique } from "../utils/validation.js";
 import { publish } from "./events.js";
+import { afterStatusChange, blockersOf, CLEARED } from "./dependencies.js";
 
 export async function nextTicketNumber() {
   const counter = await Counter.findOneAndUpdate({ _id: "tickets" }, { $inc: { value: 1 } }, { upsert: true, new: true });
@@ -148,6 +149,10 @@ export async function updateTicket(user: AuthUser, ticket: InstanceType<typeof T
   if (touchesPlacement) await validatePlacement(user, groupId, topicIds, assigneeIds, milestoneId);
   if (input.parentId) await validateParent(user, String(ticket._id), input.parentId, groupId);
 
+  if (input.status === "WAITING" && ticket.status !== "WAITING") {
+    const open = (await blockersOf(ticket)).filter((b) => !CLEARED.includes(b.status));
+    if (!open.length) throw unprocessable("NOTHING_TO_WAIT_FOR", "Link the ticket it is waiting on first (Link ticket > waits on). Use Blocked if a person has to give input.");
+  }
   const changes: Record<string, unknown> = {};
   for (const key of ["title", "description", "priority", "status", "dueDate", "parentId"] as const) if (key in input) changes[key] = input[key] ?? (key === "parentId" ? null : undefined);
   if ("groupId" in input) changes.groupId = groupId;
@@ -178,6 +183,7 @@ export async function updateTicket(user: AuthUser, ticket: InstanceType<typeof T
     await notify(assigneeIds.filter((id) => !previous.includes(id)), ticket._id, "TICKET_ASSIGNED", `You were assigned ${ticket.ticketNumber}`, user.id);
   }
   if (changed.includes("status")) await notify(interestedUsers(ticket), ticket._id, "TICKET_STATUS", `${ticket.ticketNumber} moved to ${String(ticket.status).toLowerCase().replaceAll("_", " ")}`, user.id);
+  if (changed.includes("status")) await afterStatusChange(user, ticket, String(before.status));
   if (changed.length) publish({ type: "ticket.updated", ticketId: String(ticket._id), groupId: ticket.groupId ? String(ticket.groupId) : null, data: { ticketNumber: ticket.ticketNumber, title: ticket.title, changed } });
   return ticket;
 }
