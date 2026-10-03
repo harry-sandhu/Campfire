@@ -78,7 +78,9 @@ router.post("/", requirePermission("users.create"), handle(async (request, respo
 
 router.patch("/:id", requirePermission("users.edit"), handle(async (request, response) => {
   const input = z.object({ name: z.string().trim().min(1).max(120).optional(), permissions: permissionList.optional() }).parse(request.body);
-  const user = await loadManagedUser(request.params.id);
+  // a super admin may rename their own account (the account is otherwise not manageable through this endpoint)
+  const renamingSelf = isSuperAdmin(request.user!) && request.params.id === request.user!.id && input.name !== undefined && input.permissions === undefined;
+  const user = renamingSelf ? await User.findOne({ _id: objectId.parse(request.params.id), deletedAt: null }).then((u) => { if (!u) throw notFound("USER_NOT_FOUND", "User not found"); return u; }) : await loadManagedUser(request.params.id);
   const permissionsBefore = [...user.permissions];
   if (input.permissions) {
     assertValidPermissions(input.permissions);
