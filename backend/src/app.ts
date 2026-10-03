@@ -64,7 +64,9 @@ export function createApp() {
     // Never write credentials to the logs.
     redact: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]', "req.headers['x-bootstrap-token']"],
   }));
-  app.use("/api/v1/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }), requireAllowedOrigin(isAllowedOrigin), authRouter);
+  // Sign-in only counts failures, so a correct password is never throttled; the per-email lockout in the login route still stops guessing.
+  app.use("/api/v1/auth/login", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, skipSuccessfulRequests: true }));
+  app.use("/api/v1/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 600 }), requireAllowedOrigin(isAllowedOrigin), authRouter);
   app.use("/api/v1/bootstrap", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5 }), bootstrapRouter);
   app.use("/api/v1/users", usersRouter);
   app.use("/api/v1/groups/:id/milestones", milestonesRouter);
