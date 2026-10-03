@@ -12,13 +12,14 @@ import { Button, fieldClass, panelClass } from "./controls";
 import { BoardIcon, ListIcon, PlusIcon, SearchIcon } from "./icons";
 import { AvatarStack, Empty, ErrorNote, PriorityPill, Skeleton, statusColor, TicketRow } from "./ui";
 import { ImportModal } from "./import-modal";
+import { MultiFilter, listParam } from "./multi-filter";
 import { ConfirmDialog, Modal } from "./modal";
 import { useLiveEvents } from "./realtime";
 import { PageHeader } from "./shell";
 import { TicketForm } from "./ticket-form";
 import { useToast } from "./toast";
 
-const FILTER_KEYS = ["q", "status", "priority", "group", "scope", "milestone", "view"] as const;
+const FILTER_KEYS = ["q", "status", "statusNot", "priority", "priorityNot", "group", "scope", "milestone", "milestoneNot", "assignee", "assigneeNot", "view"] as const;
 
 export function TicketsView({ mine = false }: { mine?: boolean }) {
   const { can } = useAuth();
@@ -39,10 +40,16 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
   const [dropTarget, setDropTarget] = useState("");
   const debounced = useDebounce(search);
 
+  // status, priority, milestone and assignee each take one or more values, and "Not" flips them to "is none of"
   const status = params.get("status") ?? "";
   const priority = params.get("priority") ?? "";
   const groupId = params.get("group") ?? "";
   const milestoneId = params.get("milestone") ?? "";
+  const assignee = params.get("assignee") ?? "";
+  const statusNot = params.get("statusNot") === "true";
+  const priorityNot = params.get("priorityNot") === "true";
+  const milestoneNot = params.get("milestoneNot") === "true";
+  const assigneeNot = params.get("assigneeNot") === "true";
   const inGroup = !!groupId && groupId !== "none";
   const showAll = params.get("scope") === "all";
   const onlyMine = mine || (inGroup && !showAll);
@@ -66,6 +73,12 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
     api<{ filters: SavedFilter[] }>("/saved-filters").then((d) => setSaved(d.filters)).catch(() => undefined);
   }, []);
 
+  const [groupMembers, setGroupMembers] = useState<Member[]>([]);
+  useEffect(() => {
+    setGroupMembers([]);
+    if (inGroup) api<{ members: Member[] }>(`/groups/${groupId}`).then((d) => setGroupMembers(d.members)).catch(() => undefined);
+  }, [groupId]);
+
   useEffect(() => {
     setMilestones([]);
     if (inGroup) api<{ milestones: Milestone[] }>(`/groups/${groupId}/milestones`).then((d) => setMilestones(d.milestones)).catch(() => undefined);
@@ -74,10 +87,11 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
   const queryFor = (extra: Record<string, string> = {}) => {
     const query = new URLSearchParams(extra);
     if (params.get("q")) query.set("search", params.get("q")!);
-    if (status) query.set("status", status);
-    if (priority) query.set("priority", priority);
+    if (status) { query.set("status", status); if (statusNot) query.set("statusNot", "true"); }
+    if (priority) { query.set("priority", priority); if (priorityNot) query.set("priorityNot", "true"); }
     if (groupId) query.set("groupId", groupId);
-    if (milestoneId) query.set("milestoneId", milestoneId);
+    if (milestoneId) { query.set("milestoneId", milestoneId); if (milestoneNot) query.set("milestoneNot", "true"); }
+    if (assignee) { query.set("assigneeId", assignee); if (assigneeNot) query.set("assigneeNot", "true"); }
     if (onlyMine) query.set("mine", "true");
     return query;
   };
@@ -87,7 +101,8 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
   useLiveEvents((event) => { if (event.type.startsWith("ticket.") || event.type === "comment.created") refresh(); });
   useEffect(() => setSelected([]), [params.toString()]);
 
-  const currentQuery = useMemo(() => Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? ""]).filter(([, v]) => v)), [params]);
+  // an "is not" switch with nothing picked yet is not a filter, so it is left out of saved views and the "filters active" check
+  const currentQuery = useMemo(() => Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? ""]).filter(([k, v]) => v && !(k.endsWith("Not") && !params.get(k.slice(0, -3))))), [params]);
   const activeSaved = saved.find((s) => JSON.stringify(s.query) === JSON.stringify(currentQuery));
   const hasFilters = Object.keys(currentQuery).some((k) => k !== "view" && k !== "group" && k !== "scope");
 
@@ -178,9 +193,10 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"><SearchIcon /></span>
             <input className={`${fieldClass} h-9 pl-9`} type="search" aria-label="Search tickets" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets…" />
           </div>
-          <select className={selectCls} aria-label="Status" value={status} onChange={(e) => setParams({ status: e.target.value })}><option value="">All statuses</option>{STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
-          <select className={selectCls} aria-label="Priority" value={priority} onChange={(e) => setParams({ priority: e.target.value })}><option value="">All priorities</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>
-          {milestones.length > 0 && <select className={selectCls} aria-label="Milestone" value={milestoneId} onChange={(e) => setParams({ milestone: e.target.value })}><option value="">Any milestone</option>{milestones.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}
+          <MultiFilter name="Status" allLabel="All statuses" options={STATUSES.map((v) => ({ value: v, label: label(v) }))} values={listParam(status)} negate={statusNot} onChange={(v, n) => setParams({ status: v.join(","), statusNot: n ? "true" : "" })} />
+          <MultiFilter name="Priority" allLabel="All priorities" options={PRIORITIES.map((v) => ({ value: v, label: label(v) }))} values={listParam(priority)} negate={priorityNot} onChange={(v, n) => setParams({ priority: v.join(","), priorityNot: n ? "true" : "" })} />
+          {milestones.length > 0 && <MultiFilter name="Milestone" allLabel="Any milestone" options={milestones.map((m) => ({ value: m.id, label: m.name }))} values={listParam(milestoneId)} negate={milestoneNot} onChange={(v, n) => setParams({ milestone: v.join(","), milestoneNot: n ? "true" : "" })} />}
+          {groupMembers.length > 0 && <MultiFilter name="Assignee" allLabel="Any assignee" options={groupMembers.map((m) => ({ value: m.id, label: m.name }))} values={listParam(assignee)} negate={assigneeNot} onChange={(v, n) => setParams({ assignee: v.join(","), assigneeNot: n ? "true" : "" })} />}
           {saved.length > 0 && <select className={selectCls} aria-label="Saved views" value={activeSaved?.id ?? ""} onChange={(e) => { const f = saved.find((s) => s.id === e.target.value); if (f) { setSearch(f.query.q ?? ""); router.replace(`?${new URLSearchParams(f.query).toString()}`); } }}><option value="">Saved views</option>{saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
           {hasFilters && !activeSaved && <Button variant="subtle" size="sm" onClick={() => setSaving(true)}>Save view</Button>}
           {activeSaved && <Button variant="ghost" size="sm" className="text-danger" onClick={async () => { await api(`/saved-filters/${activeSaved.id}`, { method: "DELETE" }); setSaved((s) => s.filter((x) => x.id !== activeSaved.id)); toast("View deleted"); }}>Delete view</Button>}

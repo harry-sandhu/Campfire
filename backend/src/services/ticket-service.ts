@@ -195,10 +195,15 @@ export async function buildTicketFilter(user: AuthUser, q: Partial<ListQuery>) {
   const and: Record<string, unknown>[] = [{ deletedAt: null }, await ticketVisibilityFilter(user)];
   if (q.groupId) and.push({ groupId: q.groupId === "none" ? null : q.groupId });
   if (q.topicId) and.push({ topicIds: q.topicId });
-  if (q.milestoneId) and.push({ milestoneId: q.milestoneId });
-  if (q.status) and.push({ status: q.status });
-  if (q.priority) and.push({ priority: q.priority });
-  if (q.assigneeId) and.push({ $or: [{ assigneeId: q.assigneeId }, { assigneeIds: q.assigneeId }] });
+  // each of these takes one or more values; `...Not=true` turns "is any of" into "is none of"
+  const not = (flag?: string) => flag === "true";
+  if (q.milestoneId?.length) and.push({ milestoneId: not(q.milestoneNot) ? { $nin: q.milestoneId } : { $in: q.milestoneId } });
+  if (q.status?.length) and.push({ status: not(q.statusNot) ? { $nin: q.status } : { $in: q.status } });
+  if (q.priority?.length) and.push({ priority: not(q.priorityNot) ? { $nin: q.priority } : { $in: q.priority } });
+  if (q.assigneeId?.length) {
+    const any = { $or: [{ assigneeId: { $in: q.assigneeId } }, { assigneeIds: { $in: q.assigneeId } }] };
+    and.push(not(q.assigneeNot) ? { $nor: any.$or } : any);
+  }
   if (q.mine === "true") and.push({ $or: [{ assigneeId: user.id }, { assigneeIds: user.id }] });
   if (q.search) {
     const pattern = new RegExp(escapeRegex(q.search), "i");

@@ -41,14 +41,34 @@ export const fieldPermission: Record<string, string> = {
   assigneeId: "tickets.assign", assigneeIds: "tickets.assign",
 };
 
+/** A filter value that may hold several options separated by commas (`status=OPEN,BLOCKED`). One value still works. */
+const pick = <T extends string>(allowed: readonly T[]) =>
+  z.string().max(200).optional().transform((v, ctx) => {
+    const items = (v ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+    if (items.some((x) => !(allowed as readonly string[]).includes(x))) { ctx.addIssue({ code: "custom", message: `Choose from ${allowed.join(", ")}` }); return z.NEVER; }
+    return items.length ? ([...new Set(items)] as T[]) : undefined;
+  });
+const ids = z.string().max(600).optional().transform((v, ctx) => {
+  const items = (v ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const parsed = items.map((x) => objectId.safeParse(x));
+  if (parsed.some((r) => !r.success)) { ctx.addIssue({ code: "custom", message: "Invalid id" }); return z.NEVER; }
+  return items.length ? [...new Set(items)] : undefined;
+});
+/** `statusNot=true` flips the filter to "everything except these". */
+const flag = z.enum(["true", "false"]).optional();
+
 export const listQuery = z.object({
   search: z.string().trim().max(100).optional(),
   groupId: z.union([objectId, z.literal("none")]).optional(),
   topicId: objectId.optional(),
-  milestoneId: objectId.optional(),
-  status: z.enum(statuses).optional(),
-  priority: z.enum(priorities).optional(),
-  assigneeId: objectId.optional(),
+  milestoneId: ids,
+  milestoneNot: flag,
+  status: pick(statuses),
+  statusNot: flag,
+  priority: pick(priorities),
+  priorityNot: flag,
+  assigneeId: ids,
+  assigneeNot: flag,
   mine: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),

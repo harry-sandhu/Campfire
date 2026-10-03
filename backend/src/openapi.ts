@@ -20,7 +20,7 @@ export const operations: Op[] = [
   { method: "post", path: "/api-tokens", tag: "API tokens", summary: "Create a token (shown once). Tokens act as you and can be read-only." },
   { method: "delete", path: "/api-tokens/:id", tag: "API tokens", summary: "Revoke a token." },
 
-  { method: "get", path: "/tickets", tag: "Tickets", summary: "List tickets you can see (filters: search, groupId, topicId, milestoneId, status, priority, assigneeId, mine, page, limit).", permission: "tickets.view" },
+  { method: "get", path: "/tickets", tag: "Tickets", summary: "List tickets you can see (filters: search, groupId, topicId, milestoneId, status, priority, assigneeId (each takes one or more values separated by commas; add statusNot=true, priorityNot=true, milestoneNot=true or assigneeNot=true for \"everything except these\"), mine, page, limit).", permission: "tickets.view" },
   { method: "post", path: "/tickets", tag: "Tickets", summary: "Create a ticket.", permission: "tickets.create", body: b(createInput) },
   { method: "get", path: "/tickets/export", tag: "Tickets", summary: "Export visible tickets as CSV (same filters as list).", permission: "tickets.view" },
   { method: "post", path: "/tickets/restore", tag: "Tickets", summary: "Undo a recent delete (by the person who deleted it, within 10 minutes).", permission: "tickets.delete" },

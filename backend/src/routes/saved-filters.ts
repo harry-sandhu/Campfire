@@ -11,7 +11,7 @@ const router = Router();
 router.use(authenticate);
 
 const MAX_FILTERS = 20;
-const ALLOWED_KEYS = ["q", "status", "priority", "group", "milestone", "view", "mine"] as const;
+const ALLOWED_KEYS = ["q", "status", "statusNot", "priority", "priorityNot", "group", "milestone", "milestoneNot", "assignee", "assigneeNot", "view", "mine"] as const;
 const body = z.object({ name: z.string().trim().min(1).max(60), query: z.record(z.string().max(200)) });
 
 const view = (f: any) => ({ id: String(f._id), name: f.name, query: Object.fromEntries(f.query instanceof Map ? f.query : Object.entries(f.query ?? {})) });
