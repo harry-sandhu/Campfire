@@ -193,7 +193,7 @@ export async function softDeleteTicket(user: AuthUser, ticket: InstanceType<type
 /** Builds the Mongo filter for list, export and search from query parameters, always limited to what the user can see. */
 export async function buildTicketFilter(user: AuthUser, q: Partial<ListQuery>) {
   const and: Record<string, unknown>[] = [{ deletedAt: null }, await ticketVisibilityFilter(user)];
-  if (q.groupId) and.push({ groupId: q.groupId });
+  if (q.groupId) and.push({ groupId: q.groupId === "none" ? null : q.groupId });
   if (q.topicId) and.push({ topicIds: q.topicId });
   if (q.milestoneId) and.push({ milestoneId: q.milestoneId });
   if (q.status) and.push({ status: q.status });

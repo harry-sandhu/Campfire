@@ -43,7 +43,7 @@ export const fieldPermission: Record<string, string> = {
 
 export const listQuery = z.object({
   search: z.string().trim().max(100).optional(),
-  groupId: objectId.optional(),
+  groupId: z.union([objectId, z.literal("none")]).optional(),
   topicId: objectId.optional(),
   milestoneId: objectId.optional(),
   status: z.enum(statuses).optional(),

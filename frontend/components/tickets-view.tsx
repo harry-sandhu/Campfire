@@ -18,7 +18,7 @@ import { PageHeader } from "./shell";
 import { TicketForm } from "./ticket-form";
 import { useToast } from "./toast";
 
-const FILTER_KEYS = ["q", "status", "priority", "group", "milestone", "view"] as const;
+const FILTER_KEYS = ["q", "status", "priority", "group", "scope", "milestone", "view"] as const;
 
 export function TicketsView({ mine = false }: { mine?: boolean }) {
   const { can } = useAuth();
@@ -42,6 +42,9 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
   const priority = params.get("priority") ?? "";
   const groupId = params.get("group") ?? "";
   const milestoneId = params.get("milestone") ?? "";
+  const inGroup = !!groupId && groupId !== "none";
+  const showAll = params.get("scope") === "all";
+  const onlyMine = mine || (inGroup && !showAll);
   const page = Number(params.get("page") ?? 1) || 1;
   const view = params.get("view") === "board" ? "board" : "list";
 
@@ -64,7 +67,7 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
 
   useEffect(() => {
     setMilestones([]);
-    if (groupId) api<{ milestones: Milestone[] }>(`/groups/${groupId}/milestones`).then((d) => setMilestones(d.milestones)).catch(() => undefined);
+    if (inGroup) api<{ milestones: Milestone[] }>(`/groups/${groupId}/milestones`).then((d) => setMilestones(d.milestones)).catch(() => undefined);
   }, [groupId]);
 
   const queryFor = (extra: Record<string, string> = {}) => {
@@ -74,18 +77,18 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
     if (priority) query.set("priority", priority);
     if (groupId) query.set("groupId", groupId);
     if (milestoneId) query.set("milestoneId", milestoneId);
-    if (mine) query.set("mine", "true");
+    if (onlyMine) query.set("mine", "true");
     return query;
   };
 
-  const { data, error, loading, reload, refresh, setData } = useLoad(() => api<TicketPage>(`/tickets?${queryFor({ limit: view === "board" ? "50" : "20", page: String(page) })}`), [params.toString(), mine]);
+  const { data, error, loading, reload, refresh, setData } = useLoad(() => api<TicketPage>(`/tickets?${queryFor({ limit: view === "board" ? "50" : "20", page: String(page) })}`), [params.toString(), onlyMine]);
 
   useLiveEvents((event) => { if (event.type.startsWith("ticket.") || event.type === "comment.created") refresh(); });
   useEffect(() => setSelected([]), [params.toString()]);
 
   const currentQuery = useMemo(() => Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? ""]).filter(([, v]) => v)), [params]);
   const activeSaved = saved.find((s) => JSON.stringify(s.query) === JSON.stringify(currentQuery));
-  const hasFilters = Object.keys(currentQuery).some((k) => k !== "view");
+  const hasFilters = Object.keys(currentQuery).some((k) => k !== "view" && k !== "group" && k !== "scope");
 
   const selectedTickets = (data?.tickets ?? []).filter((t) => selected.includes(t.id));
   const selectedGroups = new Set(selectedTickets.map((t) => t.groupId?._id ?? ""));
@@ -129,7 +132,7 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
 
   async function quickAdd(statusName: string, title: string) {
     try {
-      const created = await api<{ id: string }>("/tickets", { method: "POST", body: json({ title, groupId: groupId || null, topicIds: [] }) });
+      const created = await api<{ id: string }>("/tickets", { method: "POST", body: json({ title, groupId: inGroup ? groupId : null, topicIds: [] }) });
       if (statusName !== "OPEN" && can("tickets.change_status")) await api(`/tickets/${created.id}`, { method: "PATCH", body: json({ status: statusName }) });
       toast("Ticket added");
       reload();
@@ -150,6 +153,20 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
         {can("tickets.create") && <Button onClick={() => setShowCreate(true)}><PlusIcon size={16} />New ticket</Button>}
       </PageHeader>
       <section className={`${panelClass} overflow-hidden`}>
+        {!mine && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5 md:px-4" role="group" aria-label="Section">
+            {([["", "All tickets"], ["none", "No group"], ...groups.map((g) => [g.id, g.name])] as [string, string][]).map(([id, text]) => (
+              <button key={id || "all"} type="button" aria-pressed={groupId === id} className={`h-8 max-w-[220px] truncate rounded-full border px-3 text-[13px] font-semibold transition ${groupId === id ? "border-accent bg-accent-soft text-ink" : "border-line bg-card text-muted hover:text-ink"}`} onClick={() => setParams({ group: id, scope: "", milestone: "" })}>{text}</button>
+            ))}
+            {inGroup && (
+              <div className="ml-auto inline-flex rounded-lg border border-line-strong bg-soft p-0.5" role="group" aria-label="Scope">
+                {([["", "Assigned to me"], ["all", "Everything in group"]] as const).map(([key, text]) => (
+                  <button key={key} type="button" aria-pressed={showAll === !!key} className={`inline-flex h-8 items-center rounded-md border-0 px-3 text-[13px] font-semibold transition ${showAll === !!key ? "bg-card text-ink shadow-sm" : "bg-transparent text-muted hover:text-ink"}`} onClick={() => setParams({ scope: key })}>{text}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2 border-b border-line p-3 md:p-4">
           <div className="relative min-w-[200px] flex-1 basis-60">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"><SearchIcon /></span>
@@ -157,7 +174,6 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
           </div>
           <select className={selectCls} aria-label="Status" value={status} onChange={(e) => setParams({ status: e.target.value })}><option value="">All statuses</option>{STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
           <select className={selectCls} aria-label="Priority" value={priority} onChange={(e) => setParams({ priority: e.target.value })}><option value="">All priorities</option>{PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}</select>
-          <select className={selectCls} aria-label="Group" value={groupId} onChange={(e) => setParams({ group: e.target.value, milestone: "" })}><option value="">All groups</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
           {milestones.length > 0 && <select className={selectCls} aria-label="Milestone" value={milestoneId} onChange={(e) => setParams({ milestone: e.target.value })}><option value="">Any milestone</option>{milestones.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}
           {saved.length > 0 && <select className={selectCls} aria-label="Saved views" value={activeSaved?.id ?? ""} onChange={(e) => { const f = saved.find((s) => s.id === e.target.value); if (f) { setSearch(f.query.q ?? ""); router.replace(`?${new URLSearchParams(f.query).toString()}`); } }}><option value="">Saved views</option>{saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
           {hasFilters && !activeSaved && <Button variant="subtle" size="sm" onClick={() => setSaving(true)}>Save view</Button>}
@@ -183,7 +199,7 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
 
         <div className="px-4"><ErrorNote message={error} /></div>
         {loading && !data ? <Skeleton rows={8} className="rounded-none border-0" /> : !data?.tickets.length ? (
-          <Empty title={hasFilters ? "No tickets match these filters" : mine ? "Nothing assigned to you" : "No tickets yet"} hint={hasFilters ? "Clear a filter or try different words." : "New tickets show up here as soon as they are created."} action={hasFilters ? <Button variant="secondary" onClick={() => { setSearch(""); router.replace("?"); }}>Clear filters</Button> : can("tickets.create") ? <Button onClick={() => setShowCreate(true)}>New ticket</Button> : undefined} />
+          <Empty title={hasFilters ? "No tickets match these filters" : mine ? "Nothing assigned to you" : onlyMine ? "Nothing assigned to you in this group" : "No tickets yet"} hint={hasFilters ? "Clear a filter or try different words." : onlyMine && !mine ? "Switch to “Everything in group” to see the other tickets." : "New tickets show up here as soon as they are created."} action={hasFilters ? <Button variant="secondary" onClick={() => { setSearch(""); router.replace("?"); }}>Clear filters</Button> : can("tickets.create") ? <Button onClick={() => setShowCreate(true)}>New ticket</Button> : undefined} />
         ) : view === "board" ? (
           <>
             <div className="grid auto-cols-[minmax(250px,1fr)] grid-flow-col gap-3 overflow-x-auto bg-soft/50 p-4">
@@ -231,7 +247,7 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
           </>
         )}
       </section>
-      {showCreate && <TicketForm defaultGroupId={groupId} onClose={() => { setShowCreate(false); reload(); }} />}
+      {showCreate && <TicketForm defaultGroupId={inGroup ? groupId : ""} onClose={() => { setShowCreate(false); reload(); }} />}
       {showImport && <ImportModal groups={groups} defaultGroupId={groupId} onClose={() => setShowImport(false)} onDone={reload} />}
       {confirmDelete && <ConfirmDialog title="Delete tickets" message={`Delete ${selected.length} selected tickets? You can undo right after, and a SuperAdmin can restore them later.`} confirmLabel="Delete" onClose={() => setConfirmDelete(false)} onConfirm={() => bulk("delete", null, "Deleted")} />}
       {saving && (
