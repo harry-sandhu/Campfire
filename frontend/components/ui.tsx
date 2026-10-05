@@ -115,7 +115,7 @@ export function TicketRow({ ticket }: { ticket: Ticket }) {
   return (
     <Link
       href={`/tickets/${ticket.id}`}
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3 transition-colors last:border-0 hover:bg-hover md:grid-cols-[64px_minmax(0,1fr)_24px_128px_64px_48px_80px] md:px-5 ${EDGE[ticket.priority] ?? ""}`}
+      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3 transition-colors last:border-0 hover:bg-hover md:grid-cols-[64px_minmax(0,1fr)_24px_128px_64px_48px_150px] md:px-5 ${EDGE[ticket.priority] ?? ""}`}
     >
       <span className="order-2 font-mono text-xs text-muted md:order-none">{ticket.ticketNumber}</span>
       <span className="order-1 col-span-2 grid min-w-0 gap-0.5 md:order-none md:col-span-1">
@@ -130,7 +130,10 @@ export function TicketRow({ ticket }: { ticket: Ticket }) {
       <span className="hidden md:block"><StatusPill status={ticket.status} /></span>
       <span className={`hidden text-right text-xs md:block ${overdue ? "font-semibold text-danger" : "text-muted"}`}>{due}</span>
       <span className="hidden items-center justify-end gap-1 text-xs text-muted md:inline-flex" title="Comments">{ticket.commentCount ? <><CommentIcon />{ticket.commentCount}</> : null}</span>
-      <span className="order-3 justify-self-end md:order-none md:justify-self-start"><AvatarStack people={people} /></span>
+      <span className="order-3 flex min-w-0 items-center gap-2 justify-self-end md:order-none md:justify-self-start" title={people.map((p) => p.name).join(", ") || "Unassigned"}>
+        <AvatarStack people={people} max={1} />
+        <span className="hidden min-w-0 truncate text-xs text-muted md:block">{people.length ? `${people[0].name}${people.length > 1 ? ` +${people.length - 1}` : ""}` : "Unassigned"}</span>
+      </span>
     </Link>
   );
 }

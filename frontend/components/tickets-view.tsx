@@ -77,7 +77,8 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
   useEffect(() => {
     setGroupMembers([]);
     if (inGroup) api<{ members: Member[] }>(`/groups/${groupId}`).then((d) => setGroupMembers(d.members)).catch(() => undefined);
-  }, [groupId]);
+    else if (can("tickets.assign")) api<{ users: Member[] }>("/users/assignees").then((d) => setGroupMembers(d.users)).catch(() => undefined);
+  }, [groupId, can]);
 
   useEffect(() => {
     setMilestones([]);
@@ -252,7 +253,7 @@ export function TicketsView({ mine = false }: { mine?: boolean }) {
           <>
             <div className="sticky top-14 z-[5] hidden items-center gap-3 border-b border-line bg-soft pl-4 md:flex">
               <input className={checkCls} type="checkbox" aria-label="Select all on this page" checked={allSelected} onChange={() => setSelected(allSelected ? [] : data.tickets.map((t) => t.id))} />
-              <div className="grid flex-1 grid-cols-[64px_minmax(0,1fr)_24px_128px_64px_48px_80px] items-center gap-3 py-2 pr-5 text-[11px] font-semibold uppercase tracking-widest text-muted" aria-hidden="true"><span>ID</span><span>Title</span><span /><span>Status</span><span className="text-right">Due</span><span /><span>People</span></div>
+              <div className="grid flex-1 grid-cols-[64px_minmax(0,1fr)_24px_128px_64px_48px_150px] items-center gap-3 py-2 pr-5 text-[11px] font-semibold uppercase tracking-widest text-muted" aria-hidden="true"><span>ID</span><span>Title</span><span /><span>Status</span><span className="text-right">Due</span><span /><span>Assigned to</span></div>
             </div>
             <div aria-busy={loading}>
               {data.tickets.map((t) => (
